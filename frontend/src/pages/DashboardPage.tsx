@@ -7,9 +7,8 @@ import { useTelemetryStore, selectServers } from '@/store/telemetry';
 import { useShallow } from 'zustand/react/shallow';
 import { TopologyCanvas } from '@/components/topology/TopologyCanvas';
 import { CompactGreeting } from '@/components/dashboard/Greeting';
-import { CompactQuickStats, HealthScore } from '@/components/dashboard/HealthScore';
-import { QuickActions } from '@/components/dashboard/QuickActions';
-import { Hosts } from '@/components/dashboard/Hosts';
+import { CompactQuickStats } from '@/components/dashboard/HealthScore';
+import { OperationalRail } from '@/components/operational/OperationalRail';
 
 export default function DashboardPage() {
   const { topology, refetch, isLoading, error, isFetching } = useNetwork();
@@ -61,15 +60,7 @@ export default function DashboardPage() {
         aria-label="Operations panel"
         className="absolute right-4 top-24 bottom-4 z-20 hidden w-80 flex-col gap-3 overflow-y-auto pr-1 lg:flex"
       >
-        <div className="shrink-0">
-          <HealthScore />
-        </div>
-        <div className="shrink-0">
-          <QuickActions />
-        </div>
-        <div className="shrink-0">
-          <Hosts />
-        </div>
+        <OperationalRail />
         <Link
           to="/servers"
           className="shrink-0 flex items-center justify-center gap-1.5 rounded-xl border border-surface-border/60 bg-surface-input/80 px-3 py-2.5 text-xs font-semibold text-text-secondary backdrop-blur-md transition-colors hover:border-accent/40 hover:text-accent"
@@ -130,15 +121,7 @@ export default function DashboardPage() {
               </div>
 
               <div className="flex flex-col gap-4">
-                <div className="shrink-0">
-                  <HealthScore />
-                </div>
-                <div className="shrink-0">
-                  <QuickActions />
-                </div>
-                <div className="shrink-0">
-                  <Hosts />
-                </div>
+                <OperationalRail />
                 <Link
                   to="/servers"
                   onClick={() => setOpsOpen(false)}
