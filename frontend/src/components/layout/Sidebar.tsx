@@ -1,17 +1,13 @@
-import { useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { NavLink } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import {
   LayoutDashboard,
   Server,
   BellRing,
   Network,
   Settings,
-  ChevronsLeft,
-  ChevronsRight,
 } from 'lucide-react';
 import { BrandMark } from '@/components/branding/BrandMark';
-import { useUiStore } from '@/store/ui';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { cn } from '@/lib/utils';
 import { useNotificationStore } from '@/store/notifications';
@@ -25,53 +21,39 @@ const NAV_ITEMS = [
 
 const BOTTOM_ITEMS = [{ to: '/settings', label: 'Settings', icon: Settings, end: false }];
 
-function NavItem({
+function RailIcon({
   to,
   label,
   icon: Icon,
   end,
-  collapsed,
-  onClick,
 }: {
   to: string;
   label: string;
   icon: typeof LayoutDashboard;
   end: boolean;
-  collapsed: boolean;
-  onClick?: () => void;
 }) {
   return (
-    <NavLink to={to} end={end} onClick={onClick}>
+    <NavLink to={to} end={end}>
       {({ isActive }) => (
         <motion.div
-          whileHover={{ x: 2 }}
+          whileHover={{ scale: 1.08 }}
           className={cn(
-            'group relative flex min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors',
+            'group relative flex h-11 w-11 items-center justify-center rounded-xl transition-colors',
             isActive
-              ? 'bg-accent/10 text-accent'
+              ? 'bg-accent/12 text-accent'
               : 'text-text-secondary hover:text-text-primary hover:bg-overlay/5',
           )}
+          title={label}
+          aria-label={label}
         >
           {isActive && (
             <motion.span
-              layoutId="nav-active"
-              className="absolute left-0 top-1/2 h-6 w-0.5 -translate-y-1/2 rounded-full bg-accent shadow-glow"
+              layoutId="rail-active"
+              className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-full bg-accent shadow-glow"
               transition={{ type: 'spring', stiffness: 400, damping: 32 }}
             />
           )}
           <Icon className="h-[18px] w-[18px] shrink-0" strokeWidth={isActive ? 2.2 : 1.8} />
-          <AnimatePresence initial={false}>
-            {!collapsed && (
-              <motion.span
-                initial={{ opacity: 0, width: 0 }}
-                animate={{ opacity: 1, width: 'auto' }}
-                exit={{ opacity: 0, width: 0 }}
-                className="whitespace-nowrap overflow-hidden"
-              >
-                {label}
-              </motion.span>
-            )}
-          </AnimatePresence>
         </motion.div>
       )}
     </NavLink>
@@ -79,91 +61,39 @@ function NavItem({
 }
 
 export function Sidebar() {
-  const collapsed = useUiStore((s) => s.sidebarCollapsed);
-  const toggle = useUiStore((s) => s.toggleSidebar);
-  const mobileOpen = useUiStore((s) => s.mobileSidebarOpen);
-  const setMobileOpen = useUiStore((s) => s.setMobileSidebarOpen);
-  const unread = useNotificationStore((s) => s.unread);
   const isDesktop = useMediaQuery('(min-width: 1024px)');
+  const unread = useNotificationStore((s) => s.unread);
 
-  const labelsHidden = isDesktop && collapsed;
-
-  useEffect(() => {
-    if (!mobileOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setMobileOpen(false);
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [mobileOpen, setMobileOpen]);
+  if (!isDesktop) return null;
 
   return (
-    <motion.aside
+    <aside
       aria-label="Main navigation"
-      className="fixed inset-y-0 left-0 z-50 flex flex-col border-r border-surface-border bg-surface-input/90 backdrop-blur-xl"
-      initial={false}
-      animate={
-        isDesktop
-          ? { width: collapsed ? 76 : 248, x: 0 }
-          : { x: mobileOpen ? 0 : '-100%', width: 264 }
-      }
-      transition={{ type: 'spring', stiffness: 320, damping: 34 }}
+      className="fixed left-4 top-1/2 z-30 -translate-y-1/2 flex-col items-center rounded-2xl border border-surface-border/60 bg-surface-input/80 px-2 py-3 shadow-card backdrop-blur-xl hidden lg:flex"
     >
-      {/* Brand */}
-      <div className="flex items-center gap-3 px-4 py-5">
-        <BrandMark variant="core" className="h-10 w-10" />
-        <AnimatePresence initial={false}>
-          {!labelsHidden && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="overflow-hidden whitespace-nowrap"
-            >
-              <div className="font-display text-[15px] font-bold leading-tight text-text-primary">
-                Nexora
-              </div>
-              <div className="text-[10px] uppercase tracking-[0.18em] text-text-muted">NOC Control Center</div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+      <div className="mb-2 flex items-center justify-center p-1">
+        <BrandMark variant="core" className="h-8 w-8" />
       </div>
 
-      {/* Nav */}
-      <nav className="flex flex-1 flex-col gap-1 overflow-hidden px-3 py-2">
+      <nav className="flex flex-col items-center gap-1.5 py-2">
         {NAV_ITEMS.map((item) => (
-          <NavItem key={item.to} {...item} collapsed={labelsHidden} onClick={() => setMobileOpen(false)} />
+          <RailIcon key={item.to} {...item} />
         ))}
       </nav>
 
-      {/* Bottom */}
-      <div className="flex flex-col gap-1 border-t border-surface-border px-3 py-3">
+      <div className="mt-3 flex flex-col items-center gap-1.5 border-t border-surface-border/60 pt-3">
         {BOTTOM_ITEMS.map((item) => (
-          <NavItem key={item.to} {...item} collapsed={labelsHidden} onClick={() => setMobileOpen(false)} />
+          <RailIcon key={item.to} {...item} />
         ))}
-
-        <button
-          onClick={toggle}
-          className="mt-1 hidden min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-text-muted transition-colors hover:bg-overlay/5 hover:text-text-primary cursor-pointer lg:flex"
-        >
-          {collapsed ? (
-            <ChevronsRight className="h-[18px] w-[18px]" />
-          ) : (
-            <>
-              <ChevronsLeft className="h-[18px] w-[18px]" />
-              <span>Collapse</span>
-            </>
-          )}
-        </button>
       </div>
 
       {unread > 0 && (
         <motion.div
-          className="absolute right-2 top-6 h-2 w-2 rounded-full bg-accent shadow-glow"
+          className="absolute -right-1 top-6 h-2 w-2 rounded-full bg-accent shadow-glow"
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
         />
       )}
-    </motion.aside>
+    </aside>
   );
 }

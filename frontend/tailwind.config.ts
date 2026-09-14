@@ -92,6 +92,9 @@ export default {
           to: { opacity: '1', transform: 'translateY(0)' },
         },
       },
+      padding: {
+        safe: 'env(safe-area-inset-bottom, 0px)',
+      },
       animation: {
         'pulse-line': 'pulse-line 1.4s linear infinite',
         shimmer: 'shimmer 2s linear infinite',
