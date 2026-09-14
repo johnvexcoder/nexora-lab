@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { Topbar } from './Topbar';
 import { RightRail } from './RightRail';
@@ -11,6 +11,8 @@ import { useAuthStore } from '@/store/auth';
 export function AppLayout() {
   const status = useAuthStore((s) => s.status);
   const bootstrap = useAuthStore((s) => s.bootstrap);
+  const location = useLocation();
+  const isDashboard = location.pathname === '/';
 
   useEffect(() => {
     if (status === 'loading') void bootstrap();
@@ -21,11 +23,16 @@ export function AppLayout() {
       <Topbar />
 
       <div className="relative min-h-0 flex-1 overflow-x-hidden">
-        {/* Center workspace — full width, padded to avoid rails on desktop, nav on mobile */}
-        <main className="h-full overflow-y-auto overflow-x-hidden">
-          <div className="mx-auto w-full max-w-[1440px] px-4 py-4 sm:px-5 sm:py-5 lg:pl-24 lg:pr-48 xl:pl-24 xl:pr-52 pb-20 lg:pb-4">
+        {/* Center workspace — full-bleed for the topology-first dashboard,
+            padded to avoid rails on desktop, nav on mobile for all other pages */}
+        <main className={isDashboard ? 'h-full overflow-hidden' : 'h-full overflow-y-auto overflow-x-hidden'}>
+          {isDashboard ? (
             <Outlet />
-          </div>
+          ) : (
+            <div className="mx-auto w-full max-w-[1440px] px-4 py-4 sm:px-5 sm:py-5 lg:pl-24 lg:pr-48 xl:pl-24 xl:pr-52 pb-20 lg:pb-4">
+              <Outlet />
+            </div>
+          )}
         </main>
 
         {/* Floating rails */}

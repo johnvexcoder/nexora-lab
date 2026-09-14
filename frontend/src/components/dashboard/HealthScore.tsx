@@ -380,3 +380,59 @@ function Sparkline({ series, className }: { series: number[]; className?: string
     </svg>
   );
 }
+
+/** Compact chip-style stats row suited to floating dashboard overlays. */
+export function CompactQuickStats() {
+  const { stats } = useQuickStats();
+
+  if (stats.length === 0) return null;
+
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      {stats.map((stat) => {
+        // Uptime card: show Day | Hrs | Min compactly
+        if (stat.id === 'uptime') {
+          const { days, hrs, mins } = formatUptimeFromSec(stat.value);
+          return (
+            <div
+              key={stat.id}
+              className="flex items-center gap-1.5 rounded-xl border border-surface-border/60 bg-surface-input/80 px-2.5 py-1.5 backdrop-blur-md"
+            >
+              <span className="text-[10px] uppercase tracking-widest text-text-muted">
+                {stat.label}
+              </span>
+              <span className="font-display text-xs font-bold tabular text-text-primary">
+                {days}
+                <span className="ml-0.5 text-[9px] font-normal text-text-muted">D</span>
+                <span className="mx-1 text-text-muted">|</span>
+                {hrs}
+                <span className="ml-0.5 text-[9px] font-normal text-text-muted">H</span>
+                <span className="mx-1 text-text-muted">|</span>
+                {mins}
+                <span className="ml-0.5 text-[9px] font-normal text-text-muted">M</span>
+              </span>
+            </div>
+          );
+        }
+
+        return (
+          <div
+            key={stat.id}
+            className="flex items-center gap-1.5 rounded-xl border border-surface-border/60 bg-surface-input/80 px-2.5 py-1.5 backdrop-blur-md"
+          >
+            <span className="min-w-0 truncate text-[10px] uppercase tracking-widest text-text-muted">
+              {stat.label}
+            </span>
+            <span className="font-display text-xs font-bold tabular text-text-primary">
+              <AnimatedNumber value={stat.value} decimals={stat.value < 10 ? 1 : 0} />
+              {stat.value2 !== undefined && (
+                <span className="text-text-muted"> / {Math.round(stat.value2)}</span>
+              )}
+            </span>
+            <span className="text-[10px] text-text-muted">{stat.unit}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
