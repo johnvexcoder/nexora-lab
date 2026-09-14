@@ -1,11 +1,9 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
-import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  WifiOff, X, Cpu, Thermometer, HardDrive, ArrowUpRight, Layers,
+  WifiOff, X,
   Plus, Minus, Maximize2, RefreshCw,
 } from 'lucide-react';
-import { NETWORK_NODE_ICONS_FRONTEND } from '@/lib/constants';
 import { INFRA_ICON_COMPONENTS } from '@/lib/icons';
 import { networkNodeKind } from '@/lib/infrastructure';
 import type { NetworkNode, NetworkLink, ServerRuntime } from '@/types';
@@ -28,6 +26,10 @@ import {
   type TopologyNodeProps,
 } from '@/components/topology/nodes';
 import { getEffectiveStatus, isStale } from '@/components/topology/nodes/status';
+import {
+  NodeInspector,
+  type NodeInspectorAnchor,
+} from '@/components/topology/NodeInspector';
 import type { InfraMetrics } from '@/lib/infrastructure';
 
 // ── Constants ──────────────────────────────────────────────────────
@@ -633,37 +635,38 @@ export function TopologyCanvas({
         })()}
 
       {/* ═══════════════════════════════════════════════════════════
-          SELECTED NODE DETAIL PANEL
+          SELECTED NODE INSPECTOR (contextual details)
+          Desktop: compact panel beside the node · Mobile: bottom sheet
           ═══════════════════════════════════════════════════════════ */}
 
-      {selectedNode && (
-        <AnimatePresence>
-          <motion.div
-            initial={{ opacity: 0, y: 10, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 10, scale: 0.95 }}
-            className="absolute bottom-3 right-3 z-30 w-80 rounded-xl border border-surface-border bg-surface-elevated/95 p-4 shadow-2xl backdrop-blur-md"
-          >
-            <div className="mb-3 flex items-center justify-between border-b border-surface-border pb-2.5">
-              <span className="text-xs font-bold uppercase tracking-wider text-text-muted">
-                Complete Device Details
-              </span>
-              <button
-                onClick={() => setSelectedNode(null)}
-                className="rounded-lg p-1 text-text-muted transition-colors hover:bg-surface-elevated hover:text-text-primary cursor-pointer"
-                aria-label="Close details"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-            <NodeDetailPanel
-              node={selectedNode}
-              server={serverByNodeId.get(selectedNode.id)}
-              nodeById={nodeById}
-            />
-          </motion.div>
-        </AnimatePresence>
-      )}
+      <AnimatePresence>
+        {selectedNode &&
+          !selectedLink &&
+          (() => {
+            const p = finalPositions.get(selectedNode.id);
+            const rect = containerRef.current?.getBoundingClientRect();
+            if (!p || !rect) return null;
+            const s = worldToScreen(p.x, p.y);
+            const anchor: NodeInspectorAnchor = {
+              x: rect.left + s.x,
+              y: rect.top + s.y,
+              canvasLeft: rect.left,
+              canvasTop: rect.top,
+              canvasRight: rect.right,
+              canvasBottom: rect.bottom,
+            };
+            return (
+              <NodeInspector
+                key={selectedNode.id}
+                node={selectedNode}
+                server={serverByNodeId.get(selectedNode.id)}
+                nodeById={nodeById}
+                anchor={anchor}
+                onClose={() => setSelectedNode(null)}
+              />
+            );
+          })()}
+      </AnimatePresence>
 
       {/* ═══════════════════════════════════════════════════════════
           SELECTED CONNECTION DETAIL PANEL
@@ -1133,204 +1136,7 @@ function CableHoverTooltip({
   );
 }
 
-// ─── Detail Panels ─────────────────────────────────────────────────
-
-function NodeDetailPanel({
-  node,
-  server,
-  nodeById,
-}: {
-  node: NetworkNode;
-  server?: ServerRuntime;
-  nodeById: Map<string, NetworkNode>;
-}) {
-  const statusColor = getStatusMeta(node.status).color;
-  const statusLabel = getStatusMeta(node.status).label;
-  const IconComponent = INFRA_ICON_COMPONENTS[node.type];
-  const parentNode = node.parentId ? nodeById.get(node.parentId) : undefined;
-
-  return (
-    <div className="space-y-3 text-xs">
-      <div className="flex items-center gap-3">
-        <div
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border bg-surface-input"
-          style={{ borderColor: `${statusColor}55` }}
-        >
-          {IconComponent ? (
-            <IconComponent size={22} />
-          ) : (
-            <span>{NETWORK_NODE_ICONS_FRONTEND[node.type] ?? '📦'}</span>
-          )}
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="truncate text-sm font-bold text-text-primary">
-            {node.label}
-          </div>
-          <div className="flex items-center gap-2 text-[11px] text-text-muted">
-            <span className="capitalize">{node.type}</span>
-            <span className="h-1 w-1 rounded-full bg-surface-border" />
-            <span className="font-mono">
-              {node.ip ?? server?.spec.ip ?? 'No IP'}
-            </span>
-          </div>
-        </div>
-        <span
-          className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider"
-          style={{
-            backgroundColor: `${statusColor}22`,
-            color: statusColor,
-          }}
-        >
-          {statusLabel}
-        </span>
-      </div>
-
-      <div className="grid grid-cols-2 gap-2 rounded-xl border border-surface-border/70 bg-surface-input/50 p-2.5 text-[11px]">
-        <div>
-          <span className="text-text-muted">Parent Host</span>
-          <div className="mt-0.5 font-medium text-text-primary truncate">
-            {parentNode?.label ?? 'None (Root)'}
-          </div>
-        </div>
-        <div>
-          <span className="text-text-muted">Health Score</span>
-          <div className="mt-0.5 font-medium text-text-primary">
-            {Math.round(node.health)} / 100
-          </div>
-        </div>
-      </div>
-
-      {server && (
-        <div className="space-y-2 rounded-xl border border-surface-border/70 bg-surface-input/50 p-2.5">
-          <div className="text-[10px] font-bold uppercase tracking-wider text-text-muted">
-            Live Metrics
-          </div>
-          <MetricBar
-            icon={<Cpu className="h-3 w-3 text-info" />}
-            label="CPU"
-            value={Math.round(server.cpu)}
-            unit="%"
-            color="bg-info"
-          />
-          <MetricBar
-            icon={<Layers className="h-3 w-3 text-accent" />}
-            label="RAM"
-            value={
-              server.spec.ramTotalGb > 0
-                ? Math.round((server.ramUsedGb / server.spec.ramTotalGb) * 100)
-                : 0
-            }
-            unit={`% (${server.ramUsedGb.toFixed(1)} / ${server.spec.ramTotalGb.toFixed(1)} GB)`}
-            color="bg-accent"
-          />
-          <MetricBar
-            icon={<HardDrive className="h-3 w-3 text-warn" />}
-            label="Disk"
-            value={
-              server.spec.diskTotalGb > 0
-                ? Math.round(
-                    (server.diskUsedGb / server.spec.diskTotalGb) * 100,
-                  )
-                : 0
-            }
-            unit={`% (${server.diskUsedGb.toFixed(1)} / ${server.spec.diskTotalGb.toFixed(1)} GB)`}
-            color="bg-warn"
-          />
-          {server.tempC > 0 && (
-            <div className="flex items-center justify-between text-[11px]">
-              <span className="flex items-center gap-1 text-text-muted">
-                <Thermometer className="h-3 w-3 text-warn" /> Temp
-              </span>
-              <span className="font-mono font-semibold text-text-primary">
-                {Math.round(server.tempC)}°C
-              </span>
-            </div>
-          )}
-        </div>
-      )}
-
-      {(() => {
-        const containers = (server as any)?.containers as
-          | Array<{ id: string; name: string; running: boolean }>
-          | undefined;
-        if (!containers || containers.length === 0) return null;
-        const runningCount = containers.filter((c) => c.running).length;
-        return (
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-text-muted">
-              <span>Containers ({containers.length})</span>
-              <span className="text-emerald-400">{runningCount} running</span>
-            </div>
-            <div className="max-h-28 overflow-y-auto space-y-1 pr-1 text-[11px]">
-              {containers.map((c) => (
-                <div
-                  key={c.id}
-                  className="flex items-center justify-between rounded-lg border border-surface-border/50 bg-surface-input px-2 py-1"
-                >
-                  <span className="truncate font-medium text-text-primary">
-                    {c.name}
-                  </span>
-                  <span
-                    className={cn(
-                      'h-1.5 w-1.5 rounded-full',
-                      c.running ? 'bg-emerald-400' : 'bg-crit',
-                    )}
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-        );
-      })()}
-
-      {server && (
-        <div className="pt-1">
-          <Link
-            to={`/servers/${server.spec.id}`}
-            className="flex items-center justify-center gap-1.5 rounded-xl border border-accent/40 bg-accent/10 py-2 text-xs font-semibold text-accent transition-colors hover:bg-accent/20"
-          >
-            <span>View Server Details</span>
-            <ArrowUpRight className="h-3.5 w-3.5" />
-          </Link>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function MetricBar({
-  icon,
-  label,
-  value,
-  unit,
-  color,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: number;
-  unit: string;
-  color: string;
-}) {
-  return (
-    <div className="space-y-1">
-      <div className="flex items-center justify-between text-[11px]">
-        <span className="flex items-center gap-1 text-text-muted">
-          {icon} {label}
-        </span>
-        <span className="font-mono font-semibold text-text-primary">{unit}</span>
-      </div>
-      <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-border">
-        <div
-          className={cn(
-            'h-full rounded-full transition-all duration-300',
-            color,
-          )}
-          style={{ width: `${Math.min(100, Math.max(0, value))}%` }}
-        />
-      </div>
-    </div>
-  );
-}
+// ─── Cable Detail Panels ───────────────────────────────────────────
 
 function CableDetailPanel({
   link,
