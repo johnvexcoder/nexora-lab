@@ -9,7 +9,7 @@ export function useNotifications(limit = 30) {
   const hydrate = useNotificationStore((s) => s.hydrate);
   const setUnread = useNotificationStore((s) => s.setUnread);
 
-  const { data, refetch } = useQuery({
+  const { data, refetch, isLoading, isFetching, error } = useQuery({
     queryKey: ['notifications', limit],
     queryFn: () => endpoints.notifications.list(limit),
     refetchInterval: 30_000,
@@ -24,5 +24,5 @@ export function useNotifications(limit = 30) {
     endpoints.notifications.unreadCount().then((r) => setUnread(r.count)).catch(() => undefined);
   }, [setUnread]);
 
-  return { items, unread, refetch };
+  return { items, unread, refetch, isLoading, isFetching, error };
 }

@@ -54,7 +54,7 @@ export function AuditLog() {
   const pages = Math.max(1, Math.ceil(total / 25));
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4" aria-label="Administrative audit activity">
       <Section
         title="Audit log"
         subtitle="Security and management events"
@@ -92,6 +92,7 @@ export function AuditLog() {
             </p>
           )}
           <table className="table-cards w-full text-left text-sm">
+            <caption className="sr-only">Security and management activity, newest first</caption>
             <thead>
               <tr className="text-[11px] uppercase tracking-wider text-text-muted">
                 <th className="pb-2 pr-4 font-medium">Time</th>

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { BellRing, CheckCheck, Filter } from 'lucide-react';
+import { Activity, BellRing, CheckCheck, Filter, RefreshCw, ShieldAlert } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useNotificationStore } from '@/store/notifications';
@@ -22,7 +22,7 @@ const FILTERS: Array<{ id: FilterId; label: string }> = [
 ];
 
 export default function AlertsPage() {
-  const { items, unread, refetch } = useNotifications(100);
+  const { items, unread, refetch, isLoading, isFetching, error } = useNotifications(100);
   const markAllRead = useNotificationStore((s) => s.markAllRead);
   const markRead = useNotificationStore((s) => s.markRead);
   const [filter, setFilter] = useState<FilterId>('all');
@@ -31,13 +31,15 @@ export default function AlertsPage() {
   const highlightId = params.get('highlight');
   const [flashId, setFlashId] = useState<string | null>(null);
   const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const rowRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const rowRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
   const visible = items.filter(
     (n) =>
       (filter === 'all' || n.severity === filter) &&
       (!showUnreadOnly || !n.read),
   );
+  const active = items.filter((n) => !n.read && (n.severity === 'critical' || n.severity === 'warning')).length;
+  const critical = items.filter((n) => n.severity === 'critical').length;
 
   useEffect(() => {
     if (!highlightId) return;
@@ -78,10 +80,10 @@ export default function AlertsPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <main className="mx-auto flex w-full max-w-[1400px] flex-col gap-4 pb-8" aria-labelledby="alerts-title">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="fluid-h1 font-display font-bold tracking-tight text-text-primary">Alerts</h1>
+          <div className="flex items-center gap-2"><ShieldAlert className="h-5 w-5 text-accent" aria-hidden="true" /><h1 id="alerts-title" className="fluid-h1 font-display font-bold tracking-tight text-text-primary">Alerts & activity</h1></div>
           <p className="mt-1 text-sm text-text-muted">
             {unread > 0 ? (
               <>
@@ -92,20 +94,23 @@ export default function AlertsPage() {
             )}
           </p>
         </div>
-        <button
-          onClick={handleMarkAll}
-          disabled={unread === 0}
-          className="flex items-center gap-2 rounded-xl border border-surface-border px-4 py-2 text-sm font-semibold text-text-secondary transition-colors hover:border-accent/40 hover:text-accent disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
-        >
-          <CheckCheck className="h-4 w-4" /> Mark all read
-        </button>
+        <div className="flex gap-2"><button type="button" onClick={() => void refetch()} disabled={isFetching} className="flex min-h-11 items-center gap-2 rounded-xl border border-surface-border px-3 text-sm font-semibold text-text-secondary hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"><RefreshCw className={cn('h-4 w-4', isFetching && 'animate-spin')} /> Refresh</button><button type="button" onClick={handleMarkAll} disabled={unread === 0} className="flex min-h-11 items-center gap-2 rounded-xl border border-surface-border px-4 text-sm font-semibold text-text-secondary transition-colors hover:border-accent/40 hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:pointer-events-none disabled:opacity-40"><CheckCheck className="h-4 w-4" /> Mark all read</button></div>
       </div>
+
+      <section className="grid grid-cols-2 gap-2 sm:grid-cols-4" aria-label="Alert summary">
+        <Summary label="Active" value={active} tone={active ? 'text-warn' : 'text-success'} />
+        <Summary label="Critical" value={critical} tone={critical ? 'text-crit' : 'text-text-primary'} />
+        <Summary label="Unread" value={unread} tone={unread ? 'text-accent' : 'text-text-primary'} />
+        <Summary label="Activity loaded" value={items.length} tone="text-text-primary" />
+      </section>
 
       <div className="flex flex-wrap items-center gap-2 sm:gap-3">
         <div className="flex flex-wrap items-center gap-1 rounded-xl border border-surface-border bg-surface p-1">
           {FILTERS.map((f) => (
             <button
               key={f.id}
+              type="button"
+              aria-pressed={filter === f.id}
               onClick={() => setFilter(f.id)}
               className={cn(
                 'flex min-h-11 items-center rounded-lg px-3 py-2 text-xs font-semibold transition-colors cursor-pointer',
@@ -128,7 +133,11 @@ export default function AlertsPage() {
         </label>
       </div>
 
-      {visible.length === 0 ? (
+      {error ? (
+        <div className="flex flex-col items-center gap-3 rounded-2xl border border-crit/30 bg-crit/5 py-16 text-center"><ShieldAlert className="h-10 w-10 text-crit" /><strong className="text-text-primary">Alert feed unavailable</strong><span className="text-sm text-text-muted">Check the Core connection, then refresh.</span></div>
+      ) : isLoading && items.length === 0 ? (
+        <div className="space-y-2" aria-busy="true">{Array.from({ length: 5 }, (_, i) => <Skeleton key={i} className="h-24" />)}</div>
+      ) : visible.length === 0 ? (
         <div className="card flex flex-col items-center gap-3 py-16 text-text-muted">
           <BellRing className="h-10 w-10 opacity-30" />
           <span className="text-sm">No alerts match this filter</span>
@@ -136,7 +145,8 @@ export default function AlertsPage() {
       ) : (
         <div className="flex flex-col gap-2">
           {visible.map((n, i) => (
-            <motion.div
+            <motion.button
+              type="button"
               key={n.id}
               ref={(el) => {
                 rowRefs.current[n.id] = el;
@@ -146,7 +156,7 @@ export default function AlertsPage() {
               transition={{ duration: 0.3, delay: Math.min(i * 0.02, 0.4) }}
               onClick={() => handleMarkRead(n)}
               className={cn(
-                'card flex cursor-pointer items-start gap-4 p-4 transition-all',
+                'card flex w-full cursor-pointer items-start gap-4 p-4 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent',
                 !n.read && 'border-accent/25',
                 n.read ? 'opacity-70' : 'opacity-100',
                 flashId === n.id &&
@@ -173,10 +183,14 @@ export default function AlertsPage() {
                 <p className="mt-1 text-sm leading-relaxed text-text-secondary">{n.message}</p>
                 <div className="mt-1.5 text-[11px] text-text-muted">{relativeTime(n.timestamp)}</div>
               </div>
-            </motion.div>
+            </motion.button>
           ))}
         </div>
       )}
-    </div>
+    </main>
   );
+}
+
+function Summary({ label, value, tone }: { label: string; value: number; tone: string }) {
+  return <div className="rounded-xl border border-surface-border bg-surface/90 p-4"><div className="flex items-center gap-2 text-xs text-text-muted"><Activity className="h-3.5 w-3.5" />{label}</div><div className={cn('mt-2 text-2xl font-bold tabular-nums', tone)}>{value}</div></div>;
 }
