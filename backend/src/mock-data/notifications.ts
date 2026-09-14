@@ -212,8 +212,8 @@ export const TEMPLATE_SERVERS: Record<string, { name: string; image: string; wor
 };
 
 export const CONTAINER_NAMES = [
-  'homelab-frontend',
-  'homelab-backend',
+  'nexora-frontend',
+  'nexora-backend',
   'uptime-kuma',
   'grafana',
   'prometheus',

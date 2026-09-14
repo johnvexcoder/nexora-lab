@@ -424,6 +424,6 @@ export async function dispatchToChannels(title: string, message: string, severit
 
   await Promise.allSettled([
     sendTelegramMessage(telegramText).catch(() => {}),
-    sendAlertEmail(`[HomeLab] ${title}`, htmlBody).catch(() => {}),
+    sendAlertEmail(`[Nexora] ${title}`, htmlBody).catch(() => {}),
   ]);
 }

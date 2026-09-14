@@ -43,6 +43,16 @@ export default {
           DEFAULT: 'rgb(var(--success) / <alpha-value>)',
           soft: 'rgb(var(--success) / 0.12)',
         },
+        brand: {
+          bg: 'rgb(var(--brand-bg) / <alpha-value>)',
+          surface: 'rgb(var(--brand-surface) / <alpha-value>)',
+          elevated: 'rgb(var(--brand-elevated) / <alpha-value>)',
+          border: 'rgb(var(--brand-border) / <alpha-value>)',
+          cyan: 'rgb(var(--brand-cyan) / <alpha-value>)',
+          'infra-blue': 'rgb(var(--brand-infra-blue) / <alpha-value>)',
+          'electric-blue': 'rgb(var(--brand-electric-blue) / <alpha-value>)',
+          violet: 'rgb(var(--brand-violet) / <alpha-value>)',
+        },
         text: {
           primary: 'rgb(var(--text-primary) / <alpha-value>)',
           secondary: 'rgb(var(--text-secondary) / <alpha-value>)',

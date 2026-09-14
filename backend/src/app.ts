@@ -46,7 +46,7 @@ export function createApp(ctx: ApiContext): Express {
       console.log(JSON.stringify({
         ts: new Date().toISOString(),
         level: 'info',
-        service: 'homelab-backend',
+        service: 'nexora-backend',
         requestId,
         method: req.method,
         path: req.originalUrl.split('?')[0],

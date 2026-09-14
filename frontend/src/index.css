@@ -6,26 +6,36 @@
   :root {
     color-scheme: dark;
 
-    /* Dark theme (default) */
-    --base: 10 10 10;
-    --base-elevated: 14 14 14;
-    --base-soft: 19 19 19;
-    --surface: 24 24 24;
-    --surface-hover: 30 30 30;
-    --surface-active: 35 35 35;
-    --surface-border: 36 36 36;
-    --surface-input: 13 13 13;
-    --surface-elevated: 17 17 17;
+    /* Nexora design system — dark theme (default) */
+    --base: 6 10 18; /* background #060A12 */
+    --base-elevated: 17 24 39; /* elevated #111827 */
+    --base-soft: 11 17 32; /* surface #0B1120 */
+    --surface: 11 17 32; /* surface #0B1120 */
+    --surface-hover: 17 24 39; /* elevated #111827 */
+    --surface-active: 30 41 59; /* border #1E293B */
+    --surface-border: 30 41 59; /* border #1E293B */
+    --surface-input: 5 9 16; /* recessed input well */
+    --surface-elevated: 17 24 39; /* elevated #111827 */
     --overlay: 255 255 255;
 
-    --text-primary: 245 245 245;
-    --text-secondary: 163 163 163;
-    --text-muted: 107 107 107;
+    --text-primary: 248 250 252; /* #F8FAFC */
+    --text-secondary: 148 163 184; /* #94A3B8 */
+    --text-muted: 100 116 139; /* unknown/offline #64748B */
 
-    --warn: 245 158 11;
-    --crit: 239 68 68;
-    --info: 96 165 250;
-    --success: 52 211 153;
+    --warn: 245 158 11; /* warning #F59E0B */
+    --crit: 239 68 68; /* critical #EF4444 */
+    --info: 14 165 233; /* infrastructure blue #0EA5E9 */
+    --success: 34 197 94; /* healthy #22C55E */
+
+    /* Nexora brand palette */
+    --brand-bg: 6 10 18;
+    --brand-surface: 11 17 32;
+    --brand-elevated: 17 24 39;
+    --brand-border: 30 41 59;
+    --brand-cyan: 34 211 238; /* #22D3EE */
+    --brand-infra-blue: 14 165 233; /* #0EA5E9 */
+    --brand-electric-blue: 37 99 235; /* #2563EB */
+    --brand-violet: 124 58 237; /* #7C3AED */
   }
 
   [data-theme='light'] {
@@ -78,6 +88,11 @@
     --accent: 236 72 153;
     --accent-hex: #EC4899;
     --accent-hover: 244 114 182;
+  }
+  [data-accent='cyan'] {
+    --accent: 34 211 238;
+    --accent-hex: #22D3EE;
+    --accent-hover: 56 225 246;
   }
 
   html,

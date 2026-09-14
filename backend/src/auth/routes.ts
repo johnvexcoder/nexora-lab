@@ -423,7 +423,7 @@ export function createAuthRouter(): Router {
     }
     const { secret, recoveryCodes } = setupTwoFactor(user.id);
     audit({ ts: Date.now(), userId: user.id, username: user.username, role: user.role, ip: req.ip, userAgent: req.headers['user-agent'], action: '2fa.setup_started', result: 'success' });
-    res.json({ secret, recoveryCodes, otpauth: `otpauth://totp/Homelab:${encodeURIComponent(user.username)}?secret=${secret}&issuer=Homelab&period=30&digits=6&algorithm=SHA1` });
+    res.json({ secret, recoveryCodes, otpauth: `otpauth://totp/Nexora:${encodeURIComponent(user.username)}?secret=${secret}&issuer=Nexora&period=30&digits=6&algorithm=SHA1` });
   });
 
   router.post('/2fa/verify-setup', requireAuth, (req: Request, res: Response) => {

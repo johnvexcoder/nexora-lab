@@ -438,7 +438,7 @@ class NotifyDispatcher {
                 password: cfg.password,
                 from: cfg.from,
                 to: email,
-                subject: `[HomeLab] ${title}`,
+                subject: `[Nexora] ${title}`,
                 text: message,
               }).catch(() => {});
             }

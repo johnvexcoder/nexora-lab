@@ -1,9 +1,9 @@
 import { create } from 'zustand';
 
 export type ThemeAppearance = 'dark' | 'light';
-export type ThemeAccent = 'green' | 'purple' | 'blue' | 'orange' | 'red' | 'pink';
+export type ThemeAccent = 'green' | 'purple' | 'blue' | 'orange' | 'red' | 'pink' | 'cyan';
 
-export const ACCENTS: ThemeAccent[] = ['green', 'purple', 'blue', 'orange', 'red', 'pink'];
+export const ACCENTS: ThemeAccent[] = ['green', 'purple', 'blue', 'orange', 'red', 'pink', 'cyan'];
 
 export const ACCENT_HEX: Record<ThemeAccent, string> = {
   green: '#34D399',
@@ -12,6 +12,7 @@ export const ACCENT_HEX: Record<ThemeAccent, string> = {
   orange: '#F97316',
   red: '#EF4444',
   pink: '#EC4899',
+  cyan: '#22D3EE',
 };
 
 export const ACCENT_LABEL: Record<ThemeAccent, string> = {
@@ -21,9 +22,11 @@ export const ACCENT_LABEL: Record<ThemeAccent, string> = {
   orange: 'Orange',
   red: 'Red',
   pink: 'Pink',
+  cyan: 'Cyan',
 };
 
-const STORAGE_KEY = 'homelab-theme';
+const STORAGE_KEY = 'nexora-theme';
+const LEGACY_STORAGE_KEY = 'homelab-theme';
 
 interface ThemeState {
   appearance: ThemeAppearance;
@@ -35,7 +38,7 @@ interface ThemeState {
 function loadInitial(): { appearance: ThemeAppearance; accent: ThemeAccent } {
   const fallback = { appearance: 'dark' as ThemeAppearance, accent: 'green' as ThemeAccent };
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(STORAGE_KEY) ?? localStorage.getItem(LEGACY_STORAGE_KEY);
     if (!raw) return fallback;
     const parsed = JSON.parse(raw) as Partial<{ appearance: ThemeAppearance; accent: ThemeAccent }>;
     return {

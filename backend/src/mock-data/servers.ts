@@ -22,7 +22,7 @@ export function uuid(seed: string): string {
 
 /** Display names for the demo clusters referenced by `clusterId`. */
 export const CLUSTER_NAMES: Record<string, string> = {
-  'lab-proxmox': 'HomeLab Proxmox Cluster',
+  'lab-proxmox': 'Nexora Proxmox Cluster',
 };
 
 export interface MockContainerDef {
@@ -34,8 +34,8 @@ export interface MockContainerDef {
 }
 
 export const DOCKER01_CONTAINERS: MockContainerDef[] = [
-  { id: 'c01a1b2c3d01', name: 'homelab-frontend', running: true, image: 'homelab/frontend:v1.0.17', ports: ['3000:3000/tcp'] },
-  { id: 'c01a1b2c3d02', name: 'homelab-backend', running: true, image: 'homelab/backend:v1.0.17', ports: ['4000:4000/tcp'] },
+  { id: 'c01a1b2c3d01', name: 'nexora-frontend', running: true, image: 'nexora/frontend:v1.0.17', ports: ['3000:3000/tcp'] },
+  { id: 'c01a1b2c3d02', name: 'nexora-backend', running: true, image: 'nexora/backend:v1.0.17', ports: ['4000:4000/tcp'] },
   { id: 'c01a1b2c3d03', name: 'uptime-kuma', running: true, image: 'louislam/uptime-kuma:latest', ports: ['3001:3001/tcp'] },
   { id: 'c01a1b2c3d04', name: 'grafana', running: true, image: 'grafana/grafana-oss:latest', ports: ['3002:3000/tcp'] },
   { id: 'c01a1b2c3d05', name: 'prometheus', running: true, image: 'prom/prometheus:latest', ports: ['9090:9090/tcp'] },

@@ -44,7 +44,7 @@ export function statusDotClass(status: string): string {
 
 /** Renders a compact display label for verbose platform names (presentation only). */
 export function compactClusterLabel(name: string): string {
-  const compact = name.replace(/^HomeLab\s+/i, '').trim();
+  const compact = name.replace(/^(HomeLab|Nexora)\s+/i, '').trim();
   return compact || name;
 }
 
