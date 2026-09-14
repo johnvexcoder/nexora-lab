@@ -1,0 +1,180 @@
+import { useMemo, type ReactNode } from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
+import type { InfraKind, InfraMetrics, InfraStatus } from '@/lib/infrastructure';
+import { INFRA_ICON_COMPONENTS } from '@/lib/icons';
+import { cn } from '@/lib/utils';
+import { getStatusMeta } from './status';
+import type { NodeLayoutMetrics } from './types';
+
+const KIND_LABELS: Record<InfraKind, string> = {
+  host: 'Host',
+  hypervisor: 'Hypervisor',
+  vm: 'VM',
+  container: 'Container',
+  storage: 'Storage',
+  service: 'Service',
+};
+
+/** Canonical icon key for an infra kind (fallback when no explicit icon given). */
+function kindIconKey(kind: InfraKind): string {
+  switch (kind) {
+    case 'host':
+      return 'physical';
+    case 'hypervisor':
+      return 'hypervisor';
+    case 'vm':
+      return 'vm';
+    case 'container':
+      return 'container';
+    case 'storage':
+      return 'storage';
+    case 'service':
+      return 'service';
+  }
+}
+
+/**
+ * Builds a screen-reader friendly description of a node so status is never
+ * communicated through color alone. Combines name, kind, status and any known
+ * live metrics into a single sentence-style label.
+ */
+export function accessibleNodeLabel(opts: {
+  name: string;
+  kind: InfraKind;
+  status: InfraStatus;
+  ip?: string | null;
+  metrics?: InfraMetrics;
+}): string {
+  const meta = getStatusMeta(opts.status);
+  const parts = [opts.name, KIND_LABELS[opts.kind], `status ${meta.label}`];
+  if (opts.ip) parts.push(opts.ip);
+
+  const m = opts.metrics;
+  if (m?.cpuPercent != null) parts.push(`${Math.round(m.cpuPercent)}% cpu`);
+  if (m?.ramUsedGb != null && m?.ramTotalGb != null) {
+    parts.push(`${Math.round(m.ramUsedGb)} of ${Math.round(m.ramTotalGb)} gb ram`);
+  }
+  if (m?.diskUsedGb != null && m?.diskTotalGb != null) {
+    parts.push(`${Math.round(m.diskUsedGb)} of ${Math.round(m.diskTotalGb)} gb disk`);
+  }
+  if (m?.tempC != null) parts.push(`${Math.round(m.tempC)} degrees`);
+
+  return parts.join(', ');
+}
+
+export interface TopologyNodeProps {
+  id: string;
+  kind: InfraKind;
+  name: string;
+  status: InfraStatus;
+  ip?: string | null;
+  metrics?: InfraMetrics;
+  health?: number | null;
+  layout: NodeLayoutMetrics;
+  /** Minimal mode — secondary/status row omitted (mobile). */
+  compact?: boolean;
+  /** Override the default kind icon. */
+  icon?: ReactNode;
+  /** Secondary line content (kind-specific real status, tooltips, etc.). */
+  secondary?: ReactNode;
+  selected?: boolean;
+  hovered?: boolean;
+  onSelect?: () => void;
+  onHoverStart?: () => void;
+  onHoverEnd?: () => void;
+}
+
+/**
+ * Reusable base topology node: an accessible, keyboard-navigable button used by
+ * all kind-specific nodes (Host/Hypervisor/VM/Container/Storage/Service).
+ * Pointer-down is stopped so the parent canvas can pan/drag without fighting the
+ * node button.
+ */
+export function TopologyNode({
+  kind,
+  name,
+  status,
+  ip,
+  metrics,
+  layout,
+  compact = false,
+  icon,
+  secondary,
+  selected,
+  hovered,
+  onSelect,
+  onHoverStart,
+  onHoverEnd,
+}: TopologyNodeProps) {
+  const meta = getStatusMeta(status);
+  const prefersReduced = useReducedMotion();
+
+  const ariaLabel = useMemo(
+    () => accessibleNodeLabel({ name, kind, status, ip, metrics }),
+    [name, kind, status, ip, metrics],
+  );
+
+  const resolvedIcon = icon ?? (() => {
+    const IconComp = INFRA_ICON_COMPONENTS[kindIconKey(kind)] as
+      | React.FC<{ size?: number }>
+      | undefined;
+    return IconComp ? <IconComp size={layout.iconSize} /> : null;
+  })();
+
+  return (
+    <motion.button
+      type="button"
+      initial={prefersReduced ? false : { opacity: 0, scale: 0.8 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: prefersReduced ? 0 : 0.3, ease: 'easeOut' }}
+      aria-label={ariaLabel}
+      aria-pressed={onSelect ? (selected ?? false) : undefined}
+      onMouseEnter={onHoverStart}
+      onMouseLeave={onHoverEnd}
+      onClick={onSelect}
+      onPointerDown={(e) => e.stopPropagation()}
+      className={cn(
+        'group flex cursor-pointer items-center gap-2 rounded-xl border bg-surface-elevated/90 px-2.5 py-1.5 text-left shadow-lg backdrop-blur-md transition-all duration-200 select-none',
+        'outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:ring-offset-2 focus-visible:ring-offset-base',
+        selected || hovered
+          ? '-translate-y-0.5 border-accent ring-2 ring-accent/30'
+          : 'border-surface-border hover:border-surface-border/80 hover:bg-surface-input',
+      )}
+      style={{
+        width: layout.nodeWidth,
+        height: layout.nodeHeight,
+        boxShadow:
+          selected || hovered
+            ? `0 0 20px ${meta.color}33`
+            : undefined,
+      }}
+      tabIndex={0}
+    >
+      <div
+        className="relative flex shrink-0 items-center justify-center rounded-lg border border-surface-border bg-black/40"
+        style={{
+          width: layout.iconSize + 8,
+          height: layout.iconSize + 8,
+          borderColor: `${meta.color}44`,
+        }}
+      >
+        {resolvedIcon}
+        <span
+          className="absolute -right-1 -top-1 h-2 w-2 rounded-full border-2 border-surface-elevated"
+          style={{ backgroundColor: meta.color }}
+          aria-hidden="true"
+        />
+      </div>
+
+      <div className="min-w-0 flex-1 pr-0.5">
+        <div
+          className="truncate font-semibold text-text-primary group-hover:text-accent"
+          style={{ fontSize: layout.fontSize }}
+        >
+          {name}
+        </div>
+        {!compact && secondary && <div className="mt-0.5">{secondary}</div>}
+      </div>
+    </motion.button>
+  );
+}

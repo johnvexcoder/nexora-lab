@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import {
-  Globe, Shield, Network, Server, Box, HardDrive,
+  Activity, Globe, Shield, Network, Server, Box, HardDrive,
   BatteryCharging, Laptop, Monitor, Cloud,
 } from 'lucide-react';
 
@@ -74,6 +74,7 @@ export const INFRA_ICON_COMPONENTS: Record<string, React.FC<InfraIconProps>> = {
   podman: ({ size = 20 }: InfraIconProps) => <DockerIcon size={size} />,
   kubernetes: ({ size = 20 }: InfraIconProps) => <KubernetesIcon size={size} />,
   storage: ({ size = 20 }: InfraIconProps) => <HardDrive size={size} className="text-warn" />,
+  service: ({ size = 20 }: InfraIconProps) => <Activity size={size} className="text-brand-violet" />,
   nas: ({ size = 20 }: InfraIconProps) => <TrueNAsIcon size={size} />,
   ups: ({ size = 20 }: InfraIconProps) => <BatteryCharging size={size} className="text-success" />,
   cloud: ({ size = 20 }: InfraIconProps) => <Cloud size={size} className="text-text-secondary" />,

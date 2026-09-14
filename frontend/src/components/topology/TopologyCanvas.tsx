@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { NETWORK_NODE_ICONS_FRONTEND } from '@/lib/constants';
 import { INFRA_ICON_COMPONENTS } from '@/lib/icons';
+import { networkNodeKind } from '@/lib/infrastructure';
 import type { NetworkNode, NetworkLink, ServerRuntime } from '@/types';
 import { cn, clamp, formatMbps } from '@/lib/utils';
 import {
@@ -14,25 +15,23 @@ import {
   type TopologyLayout,
   type CableLayout,
 } from '@/lib/topologyLayout';
+import {
+  TopologyNode,
+  HostNode,
+  HypervisorNode,
+  VmNode,
+  ContainerNode,
+  StorageNode,
+  ServiceNode,
+  getStatusMeta,
+  type TopologyNodeProps,
+} from '@/components/topology/nodes';
 
 // ── Constants ──────────────────────────────────────────────────────
 
 const ZOOM_WORKSPACE = { min: 0.15, max: 4 };
 const ZOOM_CARD = { min: 0.3, max: 1.5 };
 const ZOOM_STEP = 1.2;
-
-const STATUS_COLOR: Record<string, string> = {
-  online: '#10B981',
-  degraded: '#F59E0B',
-  offline: '#EF4444',
-  unknown: '#6B7280',
-};
-
-const STATUS_LABEL: Record<string, string> = {
-  online: 'Online',
-  degraded: 'Degraded',
-  offline: 'Offline',
-};
 
 const LINK_COLOR: Record<string, string> = {
   healthy: '#10B981',
@@ -461,9 +460,69 @@ export function TopologyCanvas({
 
             const isHovered = hoveredNode?.id === node.id;
             const isSelected = selectedNode?.id === node.id;
-            const statusColor = STATUS_COLOR[node.status] ?? STATUS_COLOR.online;
-            const IconComponent = INFRA_ICON_COMPONENTS[node.type];
             const server = serverByNodeId.get(node.id);
+            const IconComponent = INFRA_ICON_COMPONENTS[node.type];
+            const kind = networkNodeKind(node.type);
+            const compact = !layout.metrics.showIpOnNode;
+
+            const baseProps = {
+              id: node.id,
+              name: node.label,
+              status: node.status,
+              ip: node.ip,
+              metrics: {
+                cpuPercent: node.cpuPercent ?? server?.cpu ?? null,
+                ramUsedGb: server?.ramUsedGb ?? null,
+                ramTotalGb: server?.spec.ramTotalGb ?? null,
+                diskUsedGb: server?.diskUsedGb ?? null,
+                diskTotalGb: server?.spec.diskTotalGb ?? null,
+                tempC: node.tempC ?? server?.tempC ?? null,
+                load: server?.load ?? null,
+                uptimeSeconds: server?.uptimeSeconds ?? null,
+                netUpMbps: server?.netUpMbps ?? null,
+                netDownMbps: server?.netDownMbps ?? null,
+              },
+              layout: layout.metrics,
+              compact,
+              icon: IconComponent ? (
+                <IconComponent size={layout.metrics.iconSize} />
+              ) : undefined,
+              selected: isSelected,
+              hovered: isHovered,
+              onSelect: () => {
+                setSelectedNode(node);
+                setSelectedLink(null);
+              },
+              onHoverStart: () => setHoveredNode(node),
+              onHoverEnd: () =>
+                setHoveredNode((h) => (h?.id === node.id ? null : h)),
+            } satisfies Omit<TopologyNodeProps, 'kind'>;
+
+            let nodeElement: React.ReactNode;
+            switch (kind) {
+              case 'host':
+                nodeElement = <HostNode {...baseProps} />;
+                break;
+              case 'hypervisor':
+                nodeElement = <HypervisorNode {...baseProps} />;
+                break;
+              case 'vm':
+                nodeElement = <VmNode {...baseProps} />;
+                break;
+              case 'container':
+                nodeElement = <ContainerNode {...baseProps} />;
+                break;
+              case 'storage':
+                nodeElement = <StorageNode {...baseProps} />;
+                break;
+              case 'service':
+                nodeElement = <ServiceNode {...baseProps} />;
+                break;
+              default:
+                // Boundary nodes (internet) and any unmapped types
+                nodeElement = <TopologyNode {...baseProps} kind="host" />;
+                break;
+            }
 
             return (
               <div
@@ -475,69 +534,7 @@ export function TopologyCanvas({
                   transform: 'translate(-50%, -50%)',
                 }}
               >
-                <motion.button
-                  type="button"
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ duration: 0.3, ease: 'easeOut' }}
-                  onPointerDown={(e) => e.stopPropagation()}
-                  className={cn(
-                    'group flex cursor-pointer items-center gap-2 rounded-xl border bg-surface-elevated/90 px-2.5 py-1.5 text-left shadow-lg backdrop-blur-md transition-all duration-200 select-none outline-none',
-                    isHovered || isSelected
-                      ? 'border-accent ring-2 ring-accent/30 shadow-accent/20 translate-y-[-2px]'
-                      : 'border-surface-border hover:border-surface-border/80 hover:bg-surface-input',
-                  )}
-                  style={{
-                    width: layout.metrics.nodeWidth,
-                    height: layout.metrics.nodeHeight,
-                    boxShadow:
-                      isHovered || isSelected
-                        ? `0 0 20px ${statusColor}33`
-                        : undefined,
-                  }}
-                  onMouseEnter={() => setHoveredNode(node)}
-                  onMouseLeave={() =>
-                    setHoveredNode((h) => (h?.id === node.id ? null : h))
-                  }
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setSelectedNode(node);
-                    setSelectedLink(null);
-                  }}
-                >
-                  <div
-                    className="relative flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-surface-border bg-black/40"
-                    style={{ borderColor: `${statusColor}44` }}
-                  >
-                    {IconComponent ? (
-                      <IconComponent size={layout.metrics.iconSize} />
-                    ) : (
-                      <span className="text-sm">
-                        {NETWORK_NODE_ICONS_FRONTEND[node.type] ?? '📦'}
-                      </span>
-                    )}
-                    <span
-                      className="absolute -right-1 -top-1 h-2 w-2 rounded-full border-2 border-surface-elevated"
-                      style={{ backgroundColor: statusColor }}
-                    />
-                  </div>
-
-                  <div className="min-w-0 flex-1 pr-0.5">
-                    <div
-                      className="truncate font-semibold text-text-primary group-hover:text-accent"
-                      style={{ fontSize: layout.metrics.fontSize }}
-                    >
-                      {node.label}
-                    </div>
-                    {layout.metrics.showIpOnNode && (
-                      <div className="mt-0.5 flex items-center gap-1 text-[9px] text-text-muted">
-                        <span className="truncate font-mono">
-                          {node.ip ?? (server?.spec.ip || node.type)}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </motion.button>
+                {nodeElement}
               </div>
             );
           })}
@@ -938,7 +935,8 @@ function NodeHoverTooltip({
   node: NetworkNode;
   server?: ServerRuntime;
 }) {
-  const statusColor = STATUS_COLOR[node.status] ?? STATUS_COLOR.online;
+  const statusColor = getStatusMeta(node.status).color;
+  const statusLabel = getStatusMeta(node.status).label;
   const IconComponent = INFRA_ICON_COMPONENTS[node.type];
 
   return (
@@ -963,7 +961,7 @@ function NodeHoverTooltip({
             color: statusColor,
           }}
         >
-          {STATUS_LABEL[node.status] ?? node.status}
+          {statusLabel}
         </span>
       </div>
 
@@ -1078,7 +1076,8 @@ function NodeDetailPanel({
   server?: ServerRuntime;
   nodeById: Map<string, NetworkNode>;
 }) {
-  const statusColor = STATUS_COLOR[node.status] ?? STATUS_COLOR.online;
+  const statusColor = getStatusMeta(node.status).color;
+  const statusLabel = getStatusMeta(node.status).label;
   const IconComponent = INFRA_ICON_COMPONENTS[node.type];
   const parentNode = node.parentId ? nodeById.get(node.parentId) : undefined;
 
@@ -1114,7 +1113,7 @@ function NodeDetailPanel({
             color: statusColor,
           }}
         >
-          {STATUS_LABEL[node.status] ?? node.status}
+          {statusLabel}
         </span>
       </div>
 

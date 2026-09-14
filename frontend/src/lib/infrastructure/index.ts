@@ -36,6 +36,7 @@ export {
   adaptServices,
   buildInfraGraph,
   classifyServer,
+  networkNodeKind,
   type BuildInfraGraphOpts,
   type RawDockerContainer,
   type RawDockerProfile,

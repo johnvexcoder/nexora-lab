@@ -1,4 +1,4 @@
-import type { NetworkTopology, ServerRole, ServerRuntime } from '@/types';
+import type { NetworkNode, NetworkTopology, ServerRole, ServerRuntime } from '@/types';
 import type {
   ContainerRuntime,
   InfraContainerEntity,
@@ -68,6 +68,14 @@ const NETWORK_KIND_MAP: Record<string, InfraKind | undefined> = {
   storage: 'storage',
   nas: 'storage',
 };
+
+/**
+ * Canonical kind for a raw topology node type. Returns `undefined` for
+ * boundary/out-of-scope types (internet, household/client devices, cloud, UPS).
+ */
+export function networkNodeKind(type: NetworkNode['type']): InfraKind | undefined {
+  return NETWORK_KIND_MAP[type];
+}
 
 const SERVER_ROLES: readonly ServerRole[] = [
   'hypervisor',
