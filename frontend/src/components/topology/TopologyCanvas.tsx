@@ -33,6 +33,7 @@ import {
 import type { InfraMetrics } from '@/lib/infrastructure';
 import { useTopologyStore, selectSelectedNodeId, selectFocusedNodeId, selectNode, selectFocusNode } from '@/store/topology';
 import { useShallow } from 'zustand/react/shallow';
+import { useAlertsByNode } from '@/hooks/useAlertsByNode';
 
 // ── Constants ──────────────────────────────────────────────────────
 
@@ -177,6 +178,29 @@ export function TopologyCanvas({
     }
     return m;
   }, [nodes, servers]);
+
+  // ── Alert counts per server ───────────────────────────────────
+  const alertsByServer = useAlertsByNode();
+
+  // Map alert counts to node IDs (containers inherit from parent server)
+  const alertCountsByNodeId = useMemo(() => {
+    const map = new Map<string, { critical: number; warning: number; info: number; success: number; total: number; unread: number }>();
+    for (const n of nodes) {
+      const server = serverByNodeId.get(n.id);
+      const serverId = server?.spec.id ?? n.id;
+      const counts = alertsByServer[serverId];
+      if (counts && (counts.total > 0)) {
+        map.set(n.id, counts);
+      } else if (n.parentId) {
+        // Containers and child nodes inherit parent's alerts
+        const parentCounts = map.get(n.parentId) ?? alertsByServer[n.parentId];
+        if (parentCounts && parentCounts.total > 0) {
+          map.set(n.id, parentCounts);
+        }
+      }
+    }
+    return map;
+  }, [nodes, serverByNodeId, alertsByServer]);
 
   // ── Auto-fit zoom ─────────────────────────────────────────────
 
@@ -558,6 +582,7 @@ export function TopologyCanvas({
               ) : undefined,
               selected: isSelected,
               hovered: isHovered,
+              alertCounts: alertCountsByNodeId.get(node.id),
               onSelect: () => {
                 storeSelectNode(node.id);
                 setSelectedLink(null);

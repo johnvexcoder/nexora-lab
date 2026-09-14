@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { ShieldCheck, Gauge, Boxes, HardDrive, BellRing, History } from 'lucide-react';
 import { useTelemetryStore, selectServers, globalHealthFromServers } from '@/store/telemetry';
 import { useShallow } from 'zustand/react/shallow';
@@ -11,6 +11,8 @@ import { ServicesPanelContent, ServicesSummary } from '@/components/operational/
 import { StoragePanelContent, StorageSummary } from '@/components/operational/StoragePanel';
 import { AlertsPanelContent, AlertsSummary } from '@/components/operational/AlertsPanel';
 import { EventsPanelContent, EventsSummary } from '@/components/operational/EventsPanel';
+import { useTopologyStore, selectSelectedNodeId } from '@/store/topology';
+import { useAlertsByNode } from '@/hooks/useAlertsByNode';
 
 const PANEL_DEFAULT_OPEN = ['health', 'workload'];
 
@@ -24,6 +26,20 @@ export function OperationalRail() {
   const { stats } = useQuickStats();
   const { profiles } = useDockerHosts();
   const { items, unread } = useNotifications(30);
+  const selectedNodeId = useTopologyStore(useShallow(selectSelectedNodeId));
+  const alertsByNode = useAlertsByNode();
+
+  // Find the server ID for the selected topology node
+  const selectedServerId = useMemo(() => {
+    if (!selectedNodeId) return undefined;
+    const server = servers.find(
+      (s) =>
+        s.spec.id === selectedNodeId ||
+        s.spec.hostname === selectedNodeId ||
+        (s.spec.ip && selectedNodeId.includes(s.spec.ip)),
+    );
+    return server?.spec.id;
+  }, [selectedNodeId, servers]);
 
   const [openPanels, setOpenPanels] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(PANEL_DEFAULT_OPEN.map((id) => [id, true])),
@@ -32,6 +48,11 @@ export function OperationalRail() {
   const toggle = (id: string) => setOpenPanels((prev) => ({ ...prev, [id]: !prev[id] }));
 
   const healthStatus = globalHealthFromServers(servers).status;
+
+  // Compute unread count for selected node if any
+  const selectedNodeUnread = selectedServerId
+    ? alertsByNode[selectedServerId]?.unread ?? 0
+    : unread;
 
   const panels = [
     {
@@ -70,9 +91,9 @@ export function OperationalRail() {
       id: 'alerts',
       icon: <BellRing className="h-3.5 w-3.5" />,
       title: 'Alerts',
-      subtitle: 'Notification severities',
-      badge: <AlertsSummary unread={unread} />,
-      content: <AlertsPanelContent />,
+      subtitle: selectedServerId ? 'Alerts for selected node' : 'Notification severities',
+      badge: <AlertsSummary unread={selectedNodeUnread} serverId={selectedServerId} />,
+      content: <AlertsPanelContent serverId={selectedServerId} />,
     },
     {
       id: 'events',

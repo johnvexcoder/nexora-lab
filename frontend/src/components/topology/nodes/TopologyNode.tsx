@@ -1,10 +1,12 @@
 import { useMemo, type ReactNode } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
+import { Bell } from 'lucide-react';
 import type { InfraKind, InfraMetrics, InfraStatus } from '@/lib/infrastructure';
 import { INFRA_ICON_COMPONENTS } from '@/lib/icons';
 import { cn } from '@/lib/utils';
 import { getStatusMeta, isStale, getEffectiveStatus } from './status';
 import type { NodeLayoutMetrics } from './types';
+import type { AlertCounts } from '@/hooks/useAlertsByNode';
 
 const KIND_LABELS: Record<InfraKind, string> = {
   host: 'Host',
@@ -79,6 +81,8 @@ export interface TopologyNodeProps {
   secondary?: ReactNode;
   selected?: boolean;
   hovered?: boolean;
+  /** Alert counts for this node's server. */
+  alertCounts?: AlertCounts;
   onSelect?: () => void;
   onHoverStart?: () => void;
   onHoverEnd?: () => void;
@@ -102,6 +106,7 @@ export function TopologyNode({
   secondary,
   selected,
   hovered,
+  alertCounts,
   onSelect,
   onHoverStart,
   onHoverEnd,
@@ -124,6 +129,25 @@ export function TopologyNode({
   })();
 
   const isStaleStatus = effectiveStatus === 'stale';
+
+  const highestAlertSeverity = alertCounts
+    ? (alertCounts.critical > 0
+        ? 'critical'
+        : alertCounts.warning > 0
+        ? 'warning'
+        : alertCounts.success > 0
+        ? 'success'
+        : alertCounts.info > 0
+        ? 'info'
+        : null)
+    : null;
+
+  const ALERT_COLOR: Record<string, string> = {
+    critical: '#EF4444',
+    warning: '#F59E0B',
+    success: '#22C55E',
+    info: '#0EA5E9',
+  };
 
   return (
     <motion.button
@@ -179,6 +203,15 @@ export function TopologyNode({
             aria-label="Stale telemetry data"
           >
             ⏱
+          </span>
+        )}
+        {highestAlertSeverity && !prefersReduced && (
+          <span
+            className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full border-2 border-surface-elevated"
+            style={{ backgroundColor: ALERT_COLOR[highestAlertSeverity] }}
+            aria-label={`${alertCounts?.total} active alert${alertCounts?.total === 1 ? '' : 's'} (${highestAlertSeverity})`}
+          >
+            <Bell className="h-2.5 w-2.5 text-white" />
           </span>
         )}
       </div>

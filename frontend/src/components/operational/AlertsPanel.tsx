@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { BellRing, AlertTriangle, AlertOctagon, Info, CheckCircle2 } from 'lucide-react';
+import { BellRing, AlertTriangle, AlertOctagon, Info, CheckCircle2, FilterX } from 'lucide-react';
 import { useNotifications } from '@/hooks/useNotifications';
 import { AnimatedNumber } from '@/components/ui/AnimatedNumber';
 import { cn } from '@/lib/utils';
@@ -22,11 +22,25 @@ function countBySeverity(items: Notification[]): Record<string, number> {
   return counts;
 }
 
+interface AlertsPanelContentProps {
+  /** Optional server ID to filter alerts for a specific topology node. */
+  serverId?: string;
+}
+
 /** Compact floating alerts panel — real notification severity breakdown. */
-export function AlertsPanelContent() {
+export function AlertsPanelContent({ serverId }: AlertsPanelContentProps) {
   const { items, unread } = useNotifications(30);
 
-  const counts = useMemo(() => countBySeverity(items), [items]);
+  const filteredItems = useMemo(
+    () => (serverId ? items.filter((n) => n.serverId === serverId) : items),
+    [items, serverId],
+  );
+
+  const counts = useMemo(() => countBySeverity(filteredItems), [filteredItems]);
+  const filteredUnread = useMemo(
+    () => filteredItems.filter((n) => !n.read).length,
+    [filteredItems],
+  );
   const criticalCount = counts.critical ?? 0;
 
   return (
@@ -34,7 +48,12 @@ export function AlertsPanelContent() {
       <div className="flex items-center justify-between rounded-xl border border-surface-border/60 bg-surface-elevated/60 px-2.5 py-2">
         <span className="flex items-center gap-1.5 text-[11px] text-text-muted">
           <BellRing className="h-3 w-3 text-accent" />
-          {unread > 0 ? (
+          {serverId ? (
+            <>
+              <span className="font-semibold text-text-primary">{filteredUnread}</span> alert
+              {filteredUnread === 1 ? '' : 's'} for this node
+            </>
+          ) : unread > 0 ? (
             <>
               <span className="font-semibold text-text-primary">{unread}</span> unread alert
               {unread === 1 ? '' : 's'}
@@ -43,14 +62,15 @@ export function AlertsPanelContent() {
             'All caught up'
           )}
         </span>
-        <span
-          className={cn(
-            'rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider',
-            criticalCount > 0 ? 'bg-crit/10 text-crit' : 'bg-overlay/5 text-text-muted',
-          )}
-        >
-          {criticalCount} critical
-        </span>
+        {serverId && (
+          <button
+            className="flex items-center gap-1 rounded-lg px-1.5 py-0.5 text-[10px] font-medium text-text-muted transition-colors hover:text-accent hover:bg-overlay/5 cursor-pointer"
+            aria-label="Clear node filter"
+          >
+            <FilterX className="h-3 w-3" />
+            <span>Clear</span>
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-1.5">
@@ -71,26 +91,27 @@ export function AlertsPanelContent() {
       </div>
 
       <Link
-        to="/alerts"
+        to={serverId ? `/alerts?server=${serverId}` : '/alerts'}
         className="flex items-center justify-center gap-1.5 rounded-xl border border-surface-border/70 px-2 py-1.5 text-[11px] font-semibold text-text-secondary transition-colors hover:border-accent/40 hover:text-accent"
       >
-        Open alerts center <span aria-hidden>→</span>
+        {serverId ? 'View all alerts for this node' : 'Open alerts center'} <span aria-hidden>→</span>
       </Link>
     </div>
   );
 }
 
 /** Compact one-line summary for the collapsed rail header. */
-export function AlertsSummary({ unread }: { unread: number }) {
+export function AlertsSummary({ unread, serverId }: { unread: number; serverId?: string }) {
+  const displayUnread = serverId ? unread : unread;
   return (
     <span
       className={cn(
         'ml-auto flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 font-mono text-[10px] font-bold tabular',
-        unread > 0 ? 'bg-crit text-white' : 'bg-overlay/5 text-text-muted',
+        displayUnread > 0 ? 'bg-crit text-white' : 'bg-overlay/5 text-text-muted',
       )}
-      aria-label={unread > 0 ? `${unread} unread alerts` : 'No unread alerts'}
+      aria-label={displayUnread > 0 ? `${displayUnread} unread alerts` : 'No unread alerts'}
     >
-      {unread > 0 ? (unread > 9 ? '9+' : unread) : '0'}
+      {displayUnread > 0 ? (displayUnread > 9 ? '9+' : displayUnread) : '0'}
     </span>
   );
 }
