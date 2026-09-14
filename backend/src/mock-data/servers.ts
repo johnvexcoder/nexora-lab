@@ -128,7 +128,7 @@ export const SERVER_SPECS: ServerSpec[] = [
     clusterId: 'lab-proxmox',
     parentId: 'pve0',
     os: 'Debian 12 (Bookworm)',
-    description: 'Core application host — HomeLab-OS + Prometheus stack',
+    description: 'Core application host — Nexora + Prometheus stack',
     role: 'docker',
     ip: '192.168.1.30',
     location: 'pve0 / VMID 100',

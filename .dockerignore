@@ -1,0 +1,9 @@
+node_modules
+**/node_modules
+**/dist
+.git
+.env*
+**/data
+**/*.db*
+CONVERSATION.md
+Production-Ready.md

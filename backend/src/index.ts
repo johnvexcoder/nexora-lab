@@ -48,9 +48,9 @@ async function bootstrap(): Promise<void> {
   if (config.mockMode) {
     // Pre-seed historical data so charts are populated from first boot.
     if (countMetrics() < 1000) {
-      console.log('[homelab] seeding historical telemetry…');
+      console.log('[nexora] seeding historical telemetry…');
       const seeded = seedHistory({ insertMetrics, queryMetrics });
-      console.log(`[homelab] seeded ${seeded} history points`);
+      console.log(`[nexora] seeded ${seeded} history points`);
     }
 
     const simulator = new Simulator();
@@ -66,9 +66,9 @@ async function bootstrap(): Promise<void> {
         const proxmox = new ProxmoxMetricsProvider();
         await proxmox.start();
         liveProviders.push(proxmox as any);
-        console.log(`[homelab] proxmox provider active (${config.proxmox.host})`);
+        console.log(`[nexora] proxmox provider active (${config.proxmox.host})`);
       } catch (err) {
-        console.error('[homelab] Proxmox provider failed to start:', err instanceof Error ? err.message : err);
+        console.error('[nexora] Proxmox provider failed to start:', err instanceof Error ? err.message : err);
       }
     }
 
@@ -100,9 +100,9 @@ async function bootstrap(): Promise<void> {
         };
         await docker.start();
         liveProviders.push(docker as any);
-        console.log(`[homelab] docker provider active (host: ${config.docker.host})`);
+        console.log(`[nexora] docker provider active (host: ${config.docker.host})`);
       } catch (err) {
-        console.error('[homelab] Docker provider failed to start:', err instanceof Error ? err.message : err);
+        console.error('[nexora] Docker provider failed to start:', err instanceof Error ? err.message : err);
       }
     }
 
@@ -110,9 +110,9 @@ async function bootstrap(): Promise<void> {
     const hasProxmox = liveProviders.some((p) => p instanceof ProxmoxMetricsProvider);
     if (liveProviders.length === 0 || !hasProxmox) {
       if (liveProviders.length > 0) {
-        console.warn('[homelab] No Proxmox provider available. Falling back to AgentMetricsProvider for primary metrics.');
+        console.warn('[nexora] No Proxmox provider available. Falling back to AgentMetricsProvider for primary metrics.');
       } else {
-        console.warn('[homelab] No Proxmox or Docker configured. Running with AgentMetricsProvider.');
+        console.warn('[nexora] No Proxmox or Docker configured. Running with AgentMetricsProvider.');
       }
       const agentProvider = new AgentMetricsProvider();
       await agentProvider.start();
@@ -162,14 +162,14 @@ async function bootstrap(): Promise<void> {
   startNetworkBandwidth();
 
   server.listen(config.port, config.host, () => {
-    console.log(`[homelab] backend listening on http://${config.host}:${config.port}`);
-    console.log(`[homelab] mock mode: ${config.mockMode}`);
-    console.log(`[homelab] telemetry interval: ${config.telemetryIntervalMs}ms`);
-    console.log(`[homelab] ws endpoint: ws://${config.host}:${config.port}/ws`);
+    console.log(`[nexora] backend listening on http://${config.host}:${config.port}`);
+    console.log(`[nexora] mock mode: ${config.mockMode}`);
+    console.log(`[nexora] telemetry interval: ${config.telemetryIntervalMs}ms`);
+    console.log(`[nexora] ws endpoint: ws://${config.host}:${config.port}/ws`);
   });
 }
 
 bootstrap().catch((err) => {
-  console.error('[homelab] fatal startup error', err);
+  console.error('[nexora] fatal startup error', err);
   process.exit(1);
 });

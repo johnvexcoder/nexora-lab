@@ -34,11 +34,12 @@ export async function createBackup(type: BackupType, note?: string, by?: string)
   const id = randomBytes(8).toString('hex');
   const dir = ensureDir();
   const ts = new Date().toISOString().replace(/[:.]/g, '-');
-  const file = path.join(dir, `homelab-${ts}-${type}.db`);
+  const file = path.join(dir, `nexora-${ts}-${type}-${id}.db`);
   const db = getDb();
 
   try {
     await db.backup(file);
+    fs.chmodSync(file, 0o600);
     const size = fs.statSync(file).size;
 
     const manifest = {
@@ -65,7 +66,7 @@ export async function createBackup(type: BackupType, note?: string, by?: string)
         config: i.config ? JSON.parse(i.config) : null,
       })),
     };
-    fs.writeFileSync(`${file}.manifest.json`, JSON.stringify(manifest, null, 2));
+    fs.writeFileSync(`${file}.manifest.json`, JSON.stringify(manifest, null, 2), { mode: 0o600 });
 
     getDb()
       .prepare('INSERT INTO backups (id, type, file, size, created_at, status, note) VALUES (?, ?, ?, ?, ?, ?, ?)')
@@ -123,7 +124,7 @@ export function pruneRetention(): { removed: string[] } {
 
 export function listBackups(limit = 50): BackupMeta[] {
   return getDb()
-    .prepare('SELECT id, type, file, size, created_at, status, note FROM backups ORDER BY created_at DESC LIMIT ?')
+    .prepare('SELECT id, type, file, size, created_at AS createdAt, status, note FROM backups ORDER BY created_at DESC LIMIT ?')
     .all(limit) as BackupMeta[];
 }
 
@@ -156,13 +157,22 @@ export function restoreBackup(file: string): { restored: boolean; needsRestart: 
     // Verify it is a valid SQLite db before touching the live file.
     const BetterSqlite3 = require('better-sqlite3') as typeof import('better-sqlite3');
     const probe = new BetterSqlite3(file, { readonly: true });
-    probe.pragma('quick_check');
-    probe.close();
+    try {
+      const check = probe.pragma('quick_check') as Array<{ quick_check: string }>;
+      if (check.length !== 1 || check[0].quick_check !== 'ok') throw new Error('Integrity check failed');
+      for (const table of ['users', 'settings', 'integrations', 'metrics']) {
+        if (!probe.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name=?").get(table)) throw new Error('Not a Nexora backup');
+      }
+    } finally { probe.close(); }
   } catch {
     getDb(); // reopen
     return { restored: false, needsRestart: false, message: 'backup file is not a valid SQLite database' };
   }
 
+  if (path.resolve(file) === path.resolve(live)) {
+    getDb();
+    return { restored: false, needsRestart: false, message: 'choose a backup, not the live database' };
+  }
   fs.copyFileSync(live, pre);
   try {
     fs.copyFileSync(file, live);

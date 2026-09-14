@@ -4,12 +4,15 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 function int(value: string | undefined, fallback: number): number {
-  const parsed = Number.parseInt(value ?? '', 10);
-  return Number.isFinite(parsed) ? parsed : fallback;
+  if (value === undefined || value === '') return fallback;
+  const parsed = Number(value);
+  if (!Number.isSafeInteger(parsed) || parsed <= 0) throw new Error(`Expected a positive integer, received ${value}`);
+  return parsed;
 }
 
 function bool(value: string | undefined, fallback: boolean): boolean {
   if (value === undefined || value === '') return fallback;
+  if (!['true', 'false'].includes(value.toLowerCase())) throw new Error(`Expected true or false, received ${value}`);
   return value.toLowerCase() === 'true';
 }
 
@@ -34,7 +37,7 @@ export const config = {
     host: process.env.PROXMOX_HOST ?? '',
     tokenId: process.env.PROXMOX_TOKEN_ID ?? '',
     tokenSecret: process.env.PROXMOX_TOKEN_SECRET ?? '',
-    verifyTls: bool(process.env.PROXMOX_VERIFY_TLS, false),
+    verifyTls: bool(process.env.PROXMOX_VERIFY_TLS, true),
     pollIntervalMs: int(process.env.PROXMOX_POLL_INTERVAL_MS, 5000),
     enabled: !!(process.env.PROXMOX_HOST && process.env.PROXMOX_TOKEN_ID && process.env.PROXMOX_TOKEN_SECRET),
   },
@@ -53,6 +56,12 @@ export function validateProductionConfig(): void {
   const errors: string[] = [];
   const encryptionKey = process.env.SECRET_ENCRYPTION_KEY ?? '';
   const initialPassword = process.env.ADMIN_INITIAL_PASSWORD ?? '';
+
+  if (config.port > 65535) errors.push('PORT must be between 1 and 65535');
+  if (initialPassword && initialPassword.length < 10) errors.push('ADMIN_INITIAL_PASSWORD must contain at least 10 characters');
+  if (encryptionKey && encryptionKey.length < 32) errors.push('SECRET_ENCRYPTION_KEY must contain at least 32 characters; retain the old key and use the migration guide for existing data');
+  const proxmoxFields = [config.proxmox.host, config.proxmox.tokenId, config.proxmox.tokenSecret];
+  if (proxmoxFields.some(Boolean) && !proxmoxFields.every(Boolean)) errors.push('Set all three PROXMOX_HOST, PROXMOX_TOKEN_ID and PROXMOX_TOKEN_SECRET values');
 
   if (config.demoResetAdmin && config.deploymentProfile !== 'development') {
     errors.push('DEMO_RESET_ADMIN is only allowed with DEPLOYMENT_PROFILE=development');

@@ -1,8 +1,8 @@
 {
-  "name": "homelab-os",
+  "name": "nexora",
   "version": "1.0.17",
   "private": true,
-  "description": "John Vex Coder HomeLab OS - a premium self-hosted infrastructure dashboard",
+  "description": "Nexora - a premium self-hosted infrastructure dashboard",
   "license": "GPL-3.0-or-later",
   "workspaces": [
     "frontend",

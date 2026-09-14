@@ -140,9 +140,9 @@ export async function sendOtpEmail(to: string, code: string): Promise<void> {
     password: cfg.password,
     from: cfg.from,
     to,
-    subject: 'HomeLab OS — verification code',
+    subject: 'Nexora — verification code',
     text: [
-      'Your HomeLab OS verification code is:',
+      'Your Nexora verification code is:',
       '',
       `  ${code}`,
       '',

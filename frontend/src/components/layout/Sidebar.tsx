@@ -9,8 +9,8 @@ import {
   Settings,
   ChevronsLeft,
   ChevronsRight,
-  Activity,
 } from 'lucide-react';
+import { BrandMark } from '@/components/branding/BrandMark';
 import { useUiStore } from '@/store/ui';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { cn } from '@/lib/utils';
@@ -111,10 +111,7 @@ export function Sidebar() {
     >
       {/* Brand */}
       <div className="flex items-center gap-3 px-4 py-5">
-        <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-accent/25 bg-accent/10">
-          <Activity className="h-5 w-5 text-accent" strokeWidth={2.2} />
-          <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-accent animate-glow-pulse" />
-        </div>
+        <BrandMark variant="core" className="h-10 w-10" />
         <AnimatePresence initial={false}>
           {!labelsHidden && (
             <motion.div
@@ -124,7 +121,7 @@ export function Sidebar() {
               className="overflow-hidden whitespace-nowrap"
             >
               <div className="font-display text-[15px] font-bold leading-tight text-text-primary">
-                HomeLab <span className="text-accent">OS</span>
+                Nexora
               </div>
               <div className="text-[10px] uppercase tracking-[0.18em] text-text-muted">NOC Control Center</div>
             </motion.div>

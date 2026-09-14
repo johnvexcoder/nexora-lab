@@ -23,6 +23,7 @@ export function bootstrapSecurity(): void {
 function ensureAdminUser(): void {
   const fromEnv = process.env.ADMIN_INITIAL_PASSWORD;
   const isMock = config.mockMode;
+  if (fromEnv && fromEnv.length < 10) throw new Error('ADMIN_INITIAL_PASSWORD must contain at least 10 characters');
 
   if (config.demoResetAdmin && isMock && !fromEnv && countUsers() > 0) {
     const db = getDb();
@@ -31,7 +32,7 @@ function ensureAdminUser(): void {
       const { hash, salt } = createPasswordHash('homelab-demo');
       db.prepare('UPDATE users SET password_hash = ?, password_salt = ? WHERE id = ?').run(hash, salt, row.id);
     }
-    console.log('[homelab] Demo credentials: admin / homelab-demo');
+    console.log('[nexora] Demo credentials: admin / homelab-demo');
     return;
   }
 
@@ -49,21 +50,21 @@ function ensureAdminUser(): void {
   });
 
   if (useDemoCredential) {
-    console.log('[homelab] Demo credentials: admin / homelab-demo');
+    console.log('[nexora] Demo credentials: admin / homelab-demo');
   } else if (!fromEnv) {
     const file = path.join(config.dataDir, '.admin-initial-password');
     fs.mkdirSync(config.dataDir, { recursive: true });
     fs.writeFileSync(file, `${admin.username} / ${password}\n`, { mode: 0o600 });
     console.log('');
     console.log('==================================================================');
-    console.log('[homelab] Initial administrator created.');
-    console.log(`[homelab]   username: ${admin.username}`);
-    console.log(`[homelab]   password: ${password}`);
-    console.log(`[homelab]   saved to: ${file}  (delete this file after login)`);
+    console.log('[nexora] Initial administrator created.');
+    console.log(`[nexora]   username: ${admin.username}`);
+
+    console.log(`[nexora]   saved to: ${file}  (delete this file after login)`);
     console.log('==================================================================');
     console.log('');
   } else {
-    console.log('[homelab] Initial administrator created from ADMIN_INITIAL_PASSWORD.');
+    console.log('[nexora] Initial administrator created from ADMIN_INITIAL_PASSWORD.');
   }
 }
 

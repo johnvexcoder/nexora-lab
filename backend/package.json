@@ -1,8 +1,8 @@
 {
-  "name": "@homelab/backend",
+  "name": "@nexora/backend",
   "version": "1.0.17",
   "private": true,
-  "description": "HomeLab OS backend - mock telemetry engine, REST API and WebSocket push",
+  "description": "Nexora backend - mock telemetry engine, REST API and WebSocket push",
   "main": "dist/index.js",
   "engines": {
     "node": ">=24"
@@ -14,7 +14,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "seed": "tsx src/scripts/seed.ts",
     "dashboardctl": "tsx src/cli/dashboardctl.ts",
-    "test": "tsx --test src/test/**/*.test.ts"
+    "test": "node --import tsx --test src/test/*.test.ts"
   },
   "dependencies": {
     "better-sqlite3": "^13.0.3",

@@ -3,22 +3,22 @@ services:
     build:
       context: .
       dockerfile: backend/Dockerfile
-    container_name: homelab-backend
+    container_name: nexora-backend
     restart: unless-stopped
     init: true
     environment:
       - PORT=4000
       - HOST=0.0.0.0
-      - CORS_ORIGIN=http://localhost:3000
+      - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:3000}
       - DATA_DIR=/data
       - NODE_ENV=production
       - DEPLOYMENT_PROFILE=${DEPLOYMENT_PROFILE:-lan}
-      - MOCK_MODE=${MOCK_MODE:-true}
+      - MOCK_MODE=${MOCK_MODE:-false}
       - DEMO_RESET_ADMIN=${DEMO_RESET_ADMIN:-false}
       - PROXMOX_HOST=${PROXMOX_HOST:-}
       - PROXMOX_TOKEN_ID=${PROXMOX_TOKEN_ID:-}
       - PROXMOX_TOKEN_SECRET=${PROXMOX_TOKEN_SECRET:-}
-      - PROXMOX_VERIFY_TLS=${PROXMOX_VERIFY_TLS:-false}
+      - PROXMOX_VERIFY_TLS=${PROXMOX_VERIFY_TLS:-true}
       - PROXMOX_POLL_INTERVAL_MS=${PROXMOX_POLL_INTERVAL_MS:-5000}
       - DOCKER_ENABLED=${DOCKER_ENABLED:-false}
       - DOCKER_HOST=${DOCKER_HOST:-/var/run/docker.sock}
@@ -55,7 +55,7 @@ services:
       args:
         VITE_BACKEND_URL: "/api"
         VITE_WS_URL: ""
-    container_name: homelab-frontend
+    container_name: nexora-frontend
     restart: unless-stopped
     init: true
     depends_on:
@@ -83,3 +83,4 @@ services:
 
 volumes:
   homelab-data:
+    name: ${NEXORA_DATA_VOLUME:-homelab-os_homelab-data}

@@ -2,7 +2,7 @@
  * Self-Monitor Provider
  *
  * Reads system metrics from /proc and Node.js os module so the backend
- * can monitor its own host without the HomeLab Agent. This fills in
+ * can monitor its own host without the Nexora Agent. This fills in
  * metrics for the VM where the backend is installed (e.g. docker01).
  *
  * Data sources:

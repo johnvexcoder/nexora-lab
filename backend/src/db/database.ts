@@ -40,7 +40,12 @@ export function getDb(): Database.Database {
   const dataDir = config.dataDir;
   if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
 
-  db = new Database(path.join(dataDir, 'homelab.db'));
+  try {
+    fs.accessSync(dataDir, fs.constants.W_OK);
+    db = new Database(path.join(dataDir, 'homelab.db'));
+  } catch (err) {
+    throw new Error(`Cannot open Nexora database in ${dataDir}. The runtime user must own the data directory and database files; see PRODUCTION.md volume-permission recovery.`, { cause: err });
+  }
   db.pragma('journal_mode = WAL');
   db.pragma('synchronous = NORMAL');
   db.pragma('foreign_keys = ON');

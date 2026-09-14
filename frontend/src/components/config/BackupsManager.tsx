@@ -176,8 +176,7 @@ export function BackupsManager() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setConfirmAction({ kind: 'restore-backup', id: backup.id, file: backup.file })}
-                disabled={busyId === backup.id}
+                disabled title="Stop the backend and restore with dashboardctl; see PRODUCTION.md"
               >
                 <RotateCcw className="h-3.5 w-3.5" /> Restore
               </Button>

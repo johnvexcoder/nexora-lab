@@ -27,7 +27,9 @@ export function getEncryptionKey(): Buffer {
 
   const keyFile = path.join(config.dataDir, 'secrets.key');
   if (fs.existsSync(keyFile)) {
-    cachedKey = fs.readFileSync(keyFile);
+    const stored = fs.readFileSync(keyFile);
+    if (stored.length !== 32) throw new Error('secrets.key must contain exactly 32 bytes; restore the original key from backup');
+    cachedKey = stored;
     return cachedKey;
   }
 
@@ -45,6 +47,7 @@ export function deriveKey(secret: string): Buffer {
 }
 
 export function rotateSecrets(): { reencrypted: number } {
+  if (process.env.SECRET_ENCRYPTION_KEY) throw new Error('Environment-key rotation requires an offline migration. Do not change SECRET_ENCRYPTION_KEY on an existing database; see PRODUCTION.md.');
   const oldKey = getEncryptionKey();
   const newKey = process.env.SECRET_ENCRYPTION_KEY
     ? deriveKey(process.env.SECRET_ENCRYPTION_KEY)
@@ -61,26 +64,28 @@ export function rotateSecrets(): { reencrypted: number } {
     const stmt = getDb().prepare('UPDATE integrations SET secrets = ? WHERE id = ?');
     for (const row of rows) {
       if (!row.secrets) continue;
-      try {
+      {
         const parsed = JSON.parse(row.secrets) as Record<string, string>;
         const out: Record<string, string> = {};
         for (const [field, payload] of Object.entries(parsed)) {
           const plain = decryptSecret(payload, oldKey);
-          if (plain === null) continue;
+          if (plain === null) throw new Error(`Cannot decrypt integration ${row.id}; rotation aborted`);
           out[field] = encryptSecret(plain, newKey);
         }
         stmt.run(JSON.stringify(out), row.id);
         reencrypted += 1;
-      } catch {
-        // leave entry untouched rather than corrupting it
       }
     }
   });
+  const keyFile = path.join(config.dataDir, 'secrets.key');
+  fs.writeFileSync(`${keyFile}.previous`, oldKey, { mode: 0o600 });
+  fs.writeFileSync(`${keyFile}.next`, newKey, { mode: 0o600 });
   tx();
 
   if (!process.env.SECRET_ENCRYPTION_KEY) {
     const keyFile = path.join(config.dataDir, 'secrets.key');
-    fs.writeFileSync(keyFile, newKey, { mode: 0o600 });
+    fs.writeFileSync(`${keyFile}.next`, newKey, { mode: 0o600 });
+    fs.renameSync(`${keyFile}.next`, keyFile);
   }
   cachedKey = newKey;
   return { reencrypted };

@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Activity, KeyRound, Loader2, Lock, Mail, ShieldCheck, User } from 'lucide-react';
+import { KeyRound, Loader2, Lock, Mail, ShieldCheck, User } from 'lucide-react';
 import { useAuthStore } from '@/store/auth';
 import { endpoints } from '@/api/endpoints';
+import { BrandMark } from '@/components/branding/BrandMark';
 import { RecoveryFlow } from '@/components/auth/RecoveryFlow';
 import { Button } from '@/components/ui/Button';
 import { Input, Field } from '@/components/ui/forms';
@@ -126,12 +127,9 @@ export default function LoginPage() {
       >
         <div className="card p-5 sm:p-8">
           <div className="mb-8 flex flex-col items-center text-center">
-            <div className="relative flex h-14 w-14 items-center justify-center rounded-2xl border border-accent/25 bg-accent/10">
-              <Activity className="h-7 w-7 text-accent" strokeWidth={2.2} />
-              <span className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full bg-accent animate-glow-pulse" />
-            </div>
+            <BrandMark variant="detailed" className="h-20 w-20" />
             <h1 className="mt-4 fluid-h1 font-display font-bold tracking-tight text-text-primary">
-              HomeLab <span className="text-accent">OS</span>
+              Nexora
             </h1>
             <p className="mt-1 text-sm text-text-muted">Sign in to the NOC control center</p>
           </div>

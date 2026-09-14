@@ -4,6 +4,7 @@ import type { TelemetryBroadcaster } from '../providers/types';
 import type { MetricSnapshot, Notification } from '../types';
 import { loadSessionByCookieHeader, type SessionUser } from '../security/session';
 import { getBoolSetting } from '../security/settings';
+import { config } from '../config';
 import { applySensorFlags } from '../security/features';
 
 /**
@@ -19,6 +20,7 @@ interface WsClient {
   socket: WebSocket;
   lastActive: number;
   user: SessionUser | null;
+  cookie: string | undefined;
 }
 
 interface RequestWithAuth {
@@ -53,9 +55,15 @@ export function attachWebSocket(httpServer: HttpServer, broadcaster: TelemetryBr
     server: httpServer,
     path: '/ws',
     perMessageDeflate: false,
+    maxPayload: 4096,
     verifyClient: (info, done) => {
       // Every WS connection must present a valid session cookie, or guest mode
       // must be enabled. Telemetry is only pushed to authenticated/guest feeds.
+      const origin = info.req.headers.origin;
+      if (origin && !config.corsOrigin.split(',').map((value) => value.trim()).includes(origin)) {
+        done(false, 403, 'origin_not_allowed');
+        return;
+      }
       const ctx = loadSessionByCookieHeader(info.req.headers.cookie);
       const guest = getBoolSetting('access.guest.enabled');
       if (ctx || guest) {
@@ -70,7 +78,7 @@ export function attachWebSocket(httpServer: HttpServer, broadcaster: TelemetryBr
 
   wss.on('connection', (socket, request) => {
     const user = (request as RequestWithAuth).auth ?? null;
-    const client: WsClient = { socket, lastActive: Date.now(), user };
+    const client: WsClient = { socket, lastActive: Date.now(), user, cookie: request.headers.cookie };
     clients.add(client);
 
     socket.on('message', () => {
@@ -106,6 +114,7 @@ export function attachWebSocket(httpServer: HttpServer, broadcaster: TelemetryBr
     }
   }, HEARTBEAT_INTERVAL_MS);
   heartbeat.unref();
+  wss.on('close', () => clearInterval(heartbeat));
 
   return { wss, broadcastNotifications: (notifications: Notification[]) => broadcast(clients, { type: 'notifications', data: notifications }) };
 }
@@ -119,6 +128,17 @@ function send(client: WsClient, message: PushMessage): void {
 function broadcast(clients: Set<WsClient>, message: PushMessage): void {
   const payload = JSON.stringify(message);
   for (const client of clients) {
+    const session = loadSessionByCookieHeader(client.cookie);
+    if (!session && (client.user || !getBoolSetting('access.guest.enabled'))) {
+      client.socket.close(1008, 'Session expired or revoked');
+      clients.delete(client);
+      continue;
+    }
+    if (client.socket.bufferedAmount > 1024 * 1024) {
+      client.socket.terminate();
+      clients.delete(client);
+      continue;
+    }
     if (client.socket.readyState === WebSocket.OPEN) {
       client.socket.send(payload);
     }

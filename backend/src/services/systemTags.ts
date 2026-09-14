@@ -55,7 +55,7 @@ export function resolveSystemTags(report?: SystemTagReport | null): SystemTagSta
   });
 }
 
-// ── Local (HomeLab-OS host) detection ──────────────────────────────────────
+// ── Local (Nexora host) detection ──────────────────────────────────────
 
 let localCache: SystemTagReport | null = null;
 let localCacheAt = 0;
@@ -98,7 +98,7 @@ function sensorsReadable(): boolean {
   }
 }
 
-/** Detect tag states on the backend's own host (HomeLab-OS install). Best-effort. */
+/** Detect tag states on the backend's own host (Nexora install). Best-effort. */
 export function detectLocalSystemTags(): SystemTagReport {
   const now = Date.now();
   if (localCache && now - localCacheAt < LOCAL_TTL_MS) return localCache;

@@ -19,7 +19,7 @@ import {
 import { audit, listAudit, auditActions } from '../security/audit';
 import { listUsers, getUserById, createUser, updateUser, deleteUser } from '../security/users';
 import { ROLES, type Role } from '../security/permissions';
-import { createBackup, listBackups, deleteBackup, restoreBackup } from '../services/backups';
+import { createBackup, listBackups, deleteBackup } from '../services/backups';
 import { backupStatus } from '../services/backupScheduler';
 import { captureSnapshot, listSnapshots, getSnapshot, deleteSnapshot, restoreSnapshot } from '../services/snapshots';
 import {
@@ -470,7 +470,8 @@ export function createAdminRouter(): Router {
     res.json({ ok: true });
   });
 
-  router.post('/integrations/:id/test', requireAuth, requirePermission('integrations.manage'), async (req: Request, res: Response) => {
+  router.post('/integrations/:id/test', requireAuth, requirePermission('integrations.manage'), async (req: Request, res: Response, next) => {
+    try {
     const user = req.auth!.user;
     const result = await testIntegration(req.params.id);
     audit({ ts: Date.now(), userId: user.id, username: user.username, role: user.role, ip: req.ip, userAgent: req.headers['user-agent'], action: 'integration.test', target: req.params.id, result: result.ok ? 'success' : 'failure', details: result.error });
@@ -479,6 +480,7 @@ export function createAdminRouter(): Router {
       return;
     }
     res.json({ ok: true, latencyMs: result.latencyMs });
+    } catch (err) { next(err); }
   });
 
   // --- Backups ---
@@ -508,17 +510,8 @@ export function createAdminRouter(): Router {
     res.json({ ok: true });
   });
 
-  router.post('/backups/:id/restore', requireAuth, checkDemoRestriction, requirePermission('recovery.manage'), async (req: Request, res: Response) => {
-    const user = req.auth!.user;
-    const row = getDb().prepare('SELECT file FROM backups WHERE id = ?').get(req.params.id) as { file: string } | undefined;
-    if (!row) {
-      res.status(404).json({ error: 'backup not found' });
-      return;
-    }
-    const result = restoreBackup(row.file);
-    audit({ ts: Date.now(), userId: user.id, username: user.username, role: user.role, ip: req.ip, userAgent: req.headers['user-agent'], action: 'backup.restored', target: row.file, result: result.restored ? 'success' : 'failure', details: result.message });
-    notifyDispatcher.notifySettingsChange(user.username, `restored backup "${row.file}"`, result.restored ? 'Backup restored successfully' : `Restore failed: ${result.message}`);
-    res.json(result);
+  router.post('/backups/:id/restore', requireAuth, checkDemoRestriction, requirePermission('recovery.manage'), (_req: Request, res: Response) => {
+    res.status(409).json({ error: 'offline_restore_required', message: 'Stop the backend and restore with dashboardctl as documented in PRODUCTION.md. Live database replacement is unsafe.' });
   });
 
   // --- Emergency controls ---

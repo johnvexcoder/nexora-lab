@@ -412,7 +412,7 @@ export async function dispatchToChannels(title: string, message: string, severit
   const telegramText = `${emoji} <b>${title}</b>\n\n${message}`;
 
   const htmlBody = [
-    `HomeLab OS Notification`,
+    `Nexora Notification`,
     ``,
     `${title}`,
     ``,

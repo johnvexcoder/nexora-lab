@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * dashboardctl — the J0HNVEX HOMELAB OS administration & recovery CLI.
+ * dashboardctl — the Nexora administration & recovery CLI.
  *
  * Usage:
  *   npm run dashboardctl -- status
@@ -49,7 +49,7 @@ function requireCmd(): void {
 }
 
 const USAGE = `
-dashboardctl — J0HNVEX HOMELAB OS administration & recovery CLI
+dashboardctl — Nexora administration & recovery CLI
 
 Commands:
   status                    Show system/database/security overview
@@ -113,7 +113,7 @@ async function main(): Promise<void> {
       await repairDb();
       break;
     case 'rotate-secrets':
-      rotate();
+      await rotate();
       break;
     default:
       fail(`unknown command: ${cmd}`);
@@ -126,7 +126,7 @@ function status(): void {
   const settings = getAllSettings();
   const features = getFeaturesMap();
   const backups = listBackups(3);
-  console.log('[dashboardctl] ===== J0HNVEX HOMELAB OS status =====');
+  console.log('[dashboardctl] ===== Nexora status =====');
   console.log(`  data dir      : ${config.dataDir}`);
   console.log(`  database      : ${getDb() ? 'open' : 'error'}`);
   console.log(`  users         : ${users.length}`);
@@ -284,8 +284,11 @@ async function repairDb(): Promise<void> {
   console.log('[dashboardctl] repair complete. restart the backend.');
 }
 
-function rotate(): void {
+async function rotate(): Promise<void> {
   getDb();
+  if (process.env.SECRET_ENCRYPTION_KEY) fail('Environment-key rotation is not supported; keep the original key.');
+  const backup = await createBackup('manual', 'pre-key-rotation');
+  console.log(`[dashboardctl] Pre-rotation backup: ${backup.file}`);
   const result = rotateSecrets();
   console.log(`[dashboardctl] re-encrypted ${result.reencrypted} integration secret set(s) with the new key.`);
   console.log('[dashboardctl] keep the OLD key safe until you are sure nothing needs decryption (older backups).');

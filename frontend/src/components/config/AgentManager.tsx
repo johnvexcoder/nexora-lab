@@ -172,7 +172,6 @@ export function AgentManager() {
     setTimeout(() => setCopiedKey(null), 3000);
   };
 
-  const apiKeyHint = installGuideTarget?.apiKeyPrefix ? `${installGuideTarget.apiKeyPrefix}...` : 'YOUR_API_KEY';
 
   return (
     <div className="space-y-4">
@@ -180,7 +179,7 @@ export function AgentManager() {
       <div className="flex items-center justify-between">
         <div>
           <h3 className="font-display text-base font-bold text-text-primary">Agents</h3>
-          <p className="mt-0.5 text-xs text-text-muted">Remote hosts reporting metrics via the HomeLab Agent</p>
+          <p className="mt-0.5 text-xs text-text-muted">Remote hosts reporting metrics via the Nexora Agent</p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => openInstallGuide(null)}>
@@ -417,8 +416,8 @@ export function AgentManager() {
                   <h3 className="font-display text-base font-bold text-text-primary">Installation Guide</h3>
                   <p className="mt-0.5 text-xs text-text-muted">
                     {installGuideTarget
-                      ? <>Deploy the HomeLab Agent on <b>{installGuideTarget.hostName}</b></>
-                      : <>Install the HomeLab Agent on any remote server or VM</>
+                      ? <>Deploy the Nexora Agent on <b>{installGuideTarget.hostName}</b></>
+                      : <>Install the Nexora Agent on any remote server or VM</>
                     }
                   </p>
                 </div>
@@ -445,135 +444,20 @@ export function AgentManager() {
                 ))}
               </div>
 
-              {/* Quick-start: Docker (Others tab) */}
-              {installTab === 'others' && (
-                <div className="mt-4 space-y-3">
-                  <InstallStep num={1} title="Docker (recommended for any OS)">
-                    <CodeBlock>{`docker run -d \\
-  --name homelab-agent \\
-  --restart unless-stopped \\
-  -e DASHBOARD_URL=http://YOUR_DASHBOARD_IP:4000 \\
-  -e API_KEY=${apiKeyHint} \\
-  -v /proc:/host/proc:ro \\
-  -v /sys:/host/sys:ro \\
-  ghcr.io/johnvexcoder/homelab-agent:latest`}</CodeBlock>
-                  </InstallStep>
-                  <InstallStep num={2} title="Verify in dashboard">
-                    <span className="text-xs text-text-muted">The agent should appear online within 10 seconds</span>
-                  </InstallStep>
-                </div>
-              )}
-
-              {/* Linux native: Proxmox, Debian, Ubuntu, Fedora */}
-              {installTab === 'proxmox' && (
-                <div className="mt-4 space-y-3">
-                  <InstallStep num={1} title="SSH into your Proxmox host">
-                    <CodeBlock>ssh root@{installGuideTarget?.ip || 'PROXMOX_IP'}</CodeBlock>
-                  </InstallStep>
-                  <InstallStep num={2} title="Clone and run the installer">
-                    <CodeBlock>{`git clone https://github.com/johnvexcoder/HomeLab-Agent.git /opt/homelab-agent
-cd /opt/homelab-agent
-sudo ./install.sh \\
-  --dashboard-url http://YOUR_DASHBOARD_IP:4000 \\
-  --api-key ${apiKeyHint}`}</CodeBlock>
-                  </InstallStep>
-                  <InstallStep num={3} title="Verify the service is running">
-                    <CodeBlock>sudo systemctl status homelab-agent</CodeBlock>
-                  </InstallStep>
-                  <InstallStep num={4} title="What gets installed">
-                    <div className="text-[11px] text-text-muted space-y-1">
-                      <p>The installer will automatically detect your Proxmox environment and install:</p>
-                      <ul className="list-disc pl-4 space-y-0.5">
-                        <li><b>lm-sensors</b> — temperature monitoring</li>
-                        <li><b>vnstat</b> — persistent network traffic counters</li>
-                        <li><b>Node.js runtime</b> (if not present)</li>
-                      </ul>
-                      <p className="mt-1">A systemd service <code>homelab-agent</code> is created and enabled on boot.</p>
-                    </div>
-                  </InstallStep>
-                </div>
-              )}
-
-              {installTab === 'debian' && (
-                <div className="mt-4 space-y-3">
-                  <InstallStep num={1} title="SSH into your Debian server">
-                    <CodeBlock>ssh root@{installGuideTarget?.ip || 'SERVER_IP'}</CodeBlock>
-                  </InstallStep>
-                  <InstallStep num={2} title="Clone and run the installer">
-                    <CodeBlock>{`git clone https://github.com/johnvexcoder/HomeLab-Agent.git /opt/homelab-agent
-cd /opt/homelab-agent
-sudo ./install.sh \\
-  --dashboard-url http://YOUR_DASHBOARD_IP:4000 \\
-  --api-key ${apiKeyHint}`}</CodeBlock>
-                  </InstallStep>
-                  <InstallStep num={3} title="Verify the service is running">
-                    <CodeBlock>sudo systemctl status homelab-agent</CodeBlock>
-                  </InstallStep>
-                  <InstallStep num={4} title="What gets installed">
-                    <div className="text-[11px] text-text-muted space-y-1">
-                      <p>The installer auto-installs prerequisites on Debian:</p>
-                      <ul className="list-disc pl-4 space-y-0.5">
-                        <li><code>apt install lm-sensors vnstat</code></li>
-                        <li>Node.js 20 (via NodeSource)</li>
-                      </ul>
-                    </div>
-                  </InstallStep>
-                </div>
-              )}
-
-              {installTab === 'ubuntu' && (
-                <div className="mt-4 space-y-3">
-                  <InstallStep num={1} title="SSH into your Ubuntu server">
-                    <CodeBlock>ssh root@{installGuideTarget?.ip || 'SERVER_IP'}</CodeBlock>
-                  </InstallStep>
-                  <InstallStep num={2} title="Clone and run the installer">
-                    <CodeBlock>{`git clone https://github.com/johnvexcoder/HomeLab-Agent.git /opt/homelab-agent
-cd /opt/homelab-agent
-sudo ./install.sh \\
-  --dashboard-url http://YOUR_DASHBOARD_IP:4000 \\
-  --api-key ${apiKeyHint}`}</CodeBlock>
-                  </InstallStep>
-                  <InstallStep num={3} title="Verify the service is running">
-                    <CodeBlock>sudo systemctl status homelab-agent</CodeBlock>
-                  </InstallStep>
-                  <InstallStep num={4} title="What gets installed">
-                    <div className="text-[11px] text-text-muted space-y-1">
-                      <p>The installer auto-installs prerequisites on Ubuntu:</p>
-                      <ul className="list-disc pl-4 space-y-0.5">
-                        <li><code>apt install lm-sensors vnstat</code></li>
-                        <li>Node.js 20 (via NodeSource)</li>
-                      </ul>
-                    </div>
-                  </InstallStep>
-                </div>
-              )}
-
-              {installTab === 'fedora' && (
-                <div className="mt-4 space-y-3">
-                  <InstallStep num={1} title="SSH into your Fedora server">
-                    <CodeBlock>ssh root@{installGuideTarget?.ip || 'SERVER_IP'}</CodeBlock>
-                  </InstallStep>
-                  <InstallStep num={2} title="Clone and run the installer">
-                    <CodeBlock>{`git clone https://github.com/johnvexcoder/HomeLab-Agent.git /opt/homelab-agent
-cd /opt/homelab-agent
-sudo ./install.sh \\
-  --dashboard-url http://YOUR_DASHBOARD_IP:4000 \\
-  --api-key ${apiKeyHint}`}</CodeBlock>
-                  </InstallStep>
-                  <InstallStep num={3} title="Verify the service is running">
-                    <CodeBlock>sudo systemctl status homelab-agent</CodeBlock>
-                  </InstallStep>
-                  <InstallStep num={4} title="What gets installed">
-                    <div className="text-[11px] text-text-muted space-y-1">
-                      <p>The installer auto-installs prerequisites on Fedora:</p>
-                      <ul className="list-disc pl-4 space-y-0.5">
-                        <li><code>dnf install lm_sensors vnstat</code></li>
-                        <li>Node.js 20 (via NodeSource)</li>
-                      </ul>
-                    </div>
-                  </InstallStep>
-                </div>
-              )}
+              <div className="mt-4 space-y-3">
+                <InstallStep num={1} title="Get a reviewed Agent release">
+                  <CodeBlock>{`git clone https://github.com/johnvexcoder/HomeLab-Agent.git nexora-agent
+cd nexora-agent
+git checkout YOUR_REVIEWED_AGENT_TAG`}</CodeBlock>
+                  <p className="text-xs text-text-muted">Follow PRODUCTION.md in that release for Linux prerequisites, Compose or native installation. Container monitoring runs on Linux hosts.</p>
+                </InstallStep>
+                <InstallStep num={2} title="Save the pairing key">
+                  <p className="text-xs text-text-muted">Save the key shown above in a private file. Set DASHBOARD_URL to https://YOUR_DASHBOARD/api. For private LAN HTTP, use port 3000 and explicitly allow insecure HTTP as documented.</p>
+                </InstallStep>
+                <InstallStep num={3} title="Verify pairing">
+                  <p className="text-xs text-text-muted">Confirm successful registration in the Agent logs and fresh metrics here. Missing Docker metrics require the optional Docker socket configuration on the Agent host.</p>
+                </InstallStep>
+              </div>
             </motion.div>
           </motion.div>
         )}

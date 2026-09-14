@@ -9,7 +9,7 @@ const PARENT_HEARTBEAT_TIMEOUT_MS = 90_000;
  * Canonical Identity — one server per machine, no duplicates.
  *
  * Proxmox API = inventory provider (VMID, parent node, VM state/type, cluster info)
- * HomeLab Agent = telemetry provider (CPU, RAM, disk, temp, containers, services)
+ * Nexora Agent = telemetry provider (CPU, RAM, disk, temp, containers, services)
  *
  * Matching priority:
  *   1. Machine ID (/etc/machine-id) — unique per OS install, most stable
@@ -377,8 +377,8 @@ function enrichServerWithAgent(
   // ── Description: preserve Proxmox VM description for VMs ──
   if (server.spec.role !== 'server' || !server.spec.description?.includes('VM')) {
     server.spec.description = server.spec.role === 'hypervisor'
-      ? 'Proxmox VE node + HomeLab Agent'
-      : `HomeLab Agent on ${agent.host_name}`;
+      ? 'Proxmox VE node + Nexora Agent'
+      : `Nexora Agent on ${agent.host_name}`;
   }
 
   // ── Live telemetry (agent is authoritative) ──
@@ -485,7 +485,7 @@ export function buildAgentRuntime(agent: AgentRow, agentIsStale: boolean, parent
       name: agent.host_name,
       logo: hostLogo(agent.host_type),
       os: agent.os || 'Unknown OS',
-      description: `HomeLab Agent on ${agent.host_name}`,
+      description: `Nexora Agent on ${agent.host_name}`,
       role: agent.host_type === 'vm' || agent.host_type === 'lxc' ? 'vm'
         : agent.host_type === 'bare-metal' || agent.host_type === 'hypervisor' ? 'server'
         : 'server',
