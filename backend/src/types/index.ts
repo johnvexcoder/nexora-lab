@@ -189,6 +189,8 @@ export interface NetworkNode {
   tempC?: number;
   /** CPU percentage if available. */
   cpuPercent?: number;
+  /** Unix timestamp of last telemetry update for this node. */
+  lastSeen?: number;
 }
 
 export interface NetworkLink {

@@ -21,7 +21,7 @@ import type { ServerCapability, ServerRole, ServerStatus } from '@/types';
 
 export type InfraKind = 'host' | 'hypervisor' | 'vm' | 'container' | 'storage' | 'service';
 
-export type InfraStatus = ServerStatus | 'unknown';
+export type InfraStatus = ServerStatus | 'unknown' | 'stale';
 
 /** Which backend produced this entity (diagnostic only — shape is identical). */
 export type InfraSource =
@@ -45,6 +45,8 @@ export interface InfraMetrics {
   netDownMbps?: number | null;
   load?: number | null;
   uptimeSeconds?: number | null;
+  /** Unix timestamp of last telemetry update. Used to detect stale data. */
+  lastSeen?: number | null;
 }
 
 /** Fields shared by every entity kind. */

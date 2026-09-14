@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import type { InfraMetrics, InfraStatus } from '@/lib/infrastructure';
 import { TopologyNode, type TopologyNodeProps } from './TopologyNode';
-import { StatusPill } from './status';
+import { StatusPill, getEffectiveStatus } from './status';
 
 /**
  * Kind-specific topology nodes. Each component fixes the `kind` and renders a
@@ -14,13 +14,17 @@ import { StatusPill } from './status';
 export function StatusRow({
   status,
   metric,
+  metrics,
 }: {
   status: InfraStatus;
   metric?: ReactNode;
+  metrics?: InfraMetrics;
 }) {
+  const effectiveStatus = getEffectiveStatus(status, metrics);
+  const showStale = effectiveStatus === 'stale';
   return (
     <div className="flex w-full items-center justify-between gap-1.5 leading-none text-text-secondary">
-      <StatusPill status={status} />
+      <StatusPill status={effectiveStatus} showStale={showStale} />
       {metric != null && (
         <span className="shrink-0 truncate font-mono text-[9px]">{metric}</span>
       )}
@@ -71,7 +75,7 @@ export function HostNode(props: HostNodeProps) {
     <TopologyNode
       {...props}
       kind="host"
-      secondary={<StatusRow status={props.status} metric={metric} />}
+      secondary={<StatusRow status={props.status} metric={metric} metrics={props.metrics} />}
     />
   );
 }
@@ -92,7 +96,7 @@ export function HypervisorNode({ vmCount, hostname, ...props }: HypervisorNodePr
     <TopologyNode
       {...props}
       kind="hypervisor"
-      secondary={<StatusRow status={props.status} metric={metric} />}
+      secondary={<StatusRow status={props.status} metric={metric} metrics={props.metrics} />}
     />
   );
 }
@@ -118,7 +122,7 @@ export function VmNode({ containerCount, containerRuntime, ...props }: VmNodePro
     <TopologyNode
       {...props}
       kind="vm"
-      secondary={<StatusRow status={props.status} metric={metric} />}
+      secondary={<StatusRow status={props.status} metric={metric} metrics={props.metrics} />}
     />
   );
 }
@@ -136,7 +140,7 @@ export function ContainerNode({ image, runtime, ...props }: ContainerNodeProps) 
     <TopologyNode
       {...props}
       kind="container"
-      secondary={<StatusRow status={props.status} metric={shortImage} />}
+      secondary={<StatusRow status={props.status} metric={shortImage} metrics={props.metrics} />}
     />
   );
 }
@@ -160,7 +164,7 @@ export function StorageNode({ capacityGb, usedGb, ...props }: StorageNodeProps) 
     <TopologyNode
       {...props}
       kind="storage"
-      secondary={<StatusRow status={props.status} metric={metric} />}
+      secondary={<StatusRow status={props.status} metric={metric} metrics={props.metrics} />}
     />
   );
 }
@@ -179,7 +183,7 @@ export function ServiceNode({ port, endpoint, serviceType, ...props }: ServiceNo
     <TopologyNode
       {...props}
       kind="service"
-      secondary={<StatusRow status={props.status} metric={metric} />}
+      secondary={<StatusRow status={props.status} metric={metric} metrics={props.metrics} />}
     />
   );
 }

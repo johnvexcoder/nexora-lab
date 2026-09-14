@@ -164,6 +164,8 @@ export interface NetworkNode {
   childCount?: number;
   tempC?: number;
   cpuPercent?: number;
+  /** Unix timestamp of last telemetry update for this node. */
+  lastSeen?: number;
 }
 
 export interface NetworkLink {

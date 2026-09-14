@@ -27,6 +27,8 @@ import {
   getStatusMeta,
   type TopologyNodeProps,
 } from '@/components/topology/nodes';
+import { getEffectiveStatus, isStale } from '@/components/topology/nodes/status';
+import type { InfraMetrics } from '@/lib/infrastructure';
 
 // ── Constants ──────────────────────────────────────────────────────
 
@@ -513,6 +515,7 @@ export function TopologyCanvas({
                 uptimeSeconds: server?.uptimeSeconds ?? null,
                 netUpMbps: server?.netUpMbps ?? null,
                 netDownMbps: server?.netDownMbps ?? null,
+                lastSeen: server?.lastSeen ?? node.lastSeen ?? null,
               },
               layout: layout.metrics,
               compact,
@@ -786,6 +789,10 @@ export function TopologyCanvas({
               <span className="h-2 w-2 rounded-full bg-crit" />
               Offline / Unreachable
             </span>
+            <span className="flex items-center gap-1.5 text-[11px] text-text-muted animate-pulse">
+              <span className="h-2 w-2 rounded-full border-2 border-dashed border-slate-500 bg-transparent" />
+              Stale Data
+            </span>
             {showStatusBar && (
               <span className="ml-auto font-mono text-[11px] text-text-muted">
                 {totalTx.toLocaleString(undefined, {
@@ -968,8 +975,26 @@ function NodeHoverTooltip({
   node: NetworkNode;
   server?: ServerRuntime;
 }) {
-  const statusColor = getStatusMeta(node.status).color;
-  const statusLabel = getStatusMeta(node.status).label;
+  const metrics: InfraMetrics | undefined = server
+    ? {
+        cpuPercent: server.cpu ?? null,
+        ramUsedGb: server.ramUsedGb ?? null,
+        ramTotalGb: server.spec.ramTotalGb ?? null,
+        diskUsedGb: server.diskUsedGb ?? null,
+        diskTotalGb: server.spec.diskTotalGb ?? null,
+        tempC: server.tempC ?? null,
+        load: server.load ?? null,
+        uptimeSeconds: server.uptimeSeconds ?? null,
+        netUpMbps: server.netUpMbps ?? null,
+        netDownMbps: server.netDownMbps ?? null,
+        lastSeen: server.lastSeen ?? node.lastSeen ?? null,
+      }
+    : { lastSeen: node.lastSeen ?? null };
+
+  const effectiveStatus = getEffectiveStatus(node.status, metrics);
+  const stale = isStale(metrics);
+  const statusColor = getStatusMeta(effectiveStatus).color;
+  const statusLabel = getStatusMeta(effectiveStatus).label;
   const IconComponent = INFRA_ICON_COMPONENTS[node.type];
 
   return (
@@ -988,13 +1013,17 @@ function NodeHoverTooltip({
           </span>
         </div>
         <span
-          className="shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider"
+          className={cn(
+            'shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider',
+            stale && 'animate-pulse',
+          )}
           style={{
             backgroundColor: `${statusColor}22`,
             color: statusColor,
           }}
         >
           {statusLabel}
+          {stale && <span className="ml-1 text-[8px]" aria-label="Stale data">⏱</span>}
         </span>
       </div>
 
@@ -1025,6 +1054,12 @@ function NodeHoverTooltip({
                 <span className="font-mono text-text-primary">
                   {Math.round(server.tempC)}°C
                 </span>
+              </div>
+            )}
+            {stale && (
+              <div className="flex justify-between text-warn">
+                <span>Data Freshness</span>
+                <span className="font-mono">{'Stale (>30s)'}</span>
               </div>
             )}
           </>

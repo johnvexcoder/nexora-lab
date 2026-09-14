@@ -247,6 +247,17 @@ export class TelemetryEngine {
       return this.servers.get(serverId)?.status;
     };
 
+    const nodeLastSeen = (nodeId: string) => {
+      const serverId = NODE_TO_SERVER[nodeId] ?? nodeId;
+      return this.servers.get(serverId)?.lastSeen;
+    };
+
+    // Enhance nodes with lastSeen from matched server runtimes
+    const enhancedNodes = nodes.map((node) => ({
+      ...node,
+      lastSeen: nodeLastSeen(node.id),
+    }));
+
     const derived = links.map((link) => {
       const src = nodeStatus(link.source);
       const dst = nodeStatus(link.target);
@@ -263,7 +274,7 @@ export class TelemetryEngine {
       };
     });
 
-    return { nodes, links: derived };
+    return { nodes: enhancedNodes, links: derived };
   }
 
   private computeHealth(srv: ServerRuntime, cpu: number, ramUsedGb: number, ramTotalGb: number, tempC: number): number {

@@ -3,7 +3,7 @@ import { motion, useReducedMotion } from 'framer-motion';
 import type { InfraKind, InfraMetrics, InfraStatus } from '@/lib/infrastructure';
 import { INFRA_ICON_COMPONENTS } from '@/lib/icons';
 import { cn } from '@/lib/utils';
-import { getStatusMeta } from './status';
+import { getStatusMeta, isStale, getEffectiveStatus } from './status';
 import type { NodeLayoutMetrics } from './types';
 
 const KIND_LABELS: Record<InfraKind, string> = {
@@ -106,12 +106,14 @@ export function TopologyNode({
   onHoverStart,
   onHoverEnd,
 }: TopologyNodeProps) {
-  const meta = getStatusMeta(status);
+  const effectiveStatus = getEffectiveStatus(status, metrics);
+  const stale = isStale(metrics);
+  const meta = getStatusMeta(effectiveStatus);
   const prefersReduced = useReducedMotion();
 
   const ariaLabel = useMemo(
-    () => accessibleNodeLabel({ name, kind, status, ip, metrics }),
-    [name, kind, status, ip, metrics],
+    () => accessibleNodeLabel({ name, kind, status: effectiveStatus, ip, metrics }),
+    [name, kind, effectiveStatus, ip, metrics],
   );
 
   const resolvedIcon = icon ?? (() => {
@@ -121,11 +123,13 @@ export function TopologyNode({
     return IconComp ? <IconComp size={layout.iconSize} /> : null;
   })();
 
+  const isStaleStatus = effectiveStatus === 'stale';
+
   return (
     <motion.button
       type="button"
       initial={prefersReduced ? false : { opacity: 0, scale: 0.8 }}
-      animate={{ opacity: 1, scale: 1 }}
+      animate={{ opacity: isStaleStatus && !prefersReduced ? 0.7 : 1, scale: 1 }}
       transition={{ duration: prefersReduced ? 0 : 0.3, ease: 'easeOut' }}
       aria-label={ariaLabel}
       aria-pressed={onSelect ? (selected ?? false) : undefined}
@@ -139,10 +143,12 @@ export function TopologyNode({
         selected || hovered
           ? '-translate-y-0.5 border-accent ring-2 ring-accent/30'
           : 'border-surface-border hover:border-surface-border/80 hover:bg-surface-input',
+        isStaleStatus && 'border-dashed animate-pulse',
       )}
       style={{
         width: layout.nodeWidth,
         height: layout.nodeHeight,
+        opacity: isStaleStatus ? 0.85 : 1,
         boxShadow:
           selected || hovered
             ? `0 0 20px ${meta.color}33`
@@ -160,10 +166,21 @@ export function TopologyNode({
       >
         {resolvedIcon}
         <span
-          className="absolute -right-1 -top-1 h-2 w-2 rounded-full border-2 border-surface-elevated"
+          className={cn(
+            'absolute -right-1 -top-1 h-2 w-2 rounded-full border-2 border-surface-elevated',
+            isStaleStatus && 'animate-pulse',
+          )}
           style={{ backgroundColor: meta.color }}
           aria-hidden="true"
         />
+        {isStaleStatus && !prefersReduced && (
+          <span
+            className="absolute -bottom-1 -right-1 h-3 w-3 rounded-full bg-surface-elevated flex items-center justify-center text-[8px] animate-pulse"
+            aria-label="Stale telemetry data"
+          >
+            ⏱
+          </span>
+        )}
       </div>
 
       <div className="min-w-0 flex-1 pr-0.5">
