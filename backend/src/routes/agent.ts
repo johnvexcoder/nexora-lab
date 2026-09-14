@@ -195,6 +195,8 @@ function extractFlatMetrics(body: Record<string, unknown>): Record<string, unkno
 
 
 const AgentReportSchema = z.object({
+  /** Versioned envelope (v1). Absent today for v0/implicit agents. */
+  protocolVersion: z.number().int().positive().optional(),
   hostInfo: z.object({
     hostId: z.string(),
     hostName: z.string(),
@@ -221,6 +223,12 @@ const AgentReportSchema = z.object({
 }).passthrough();
 
 const AgentRegistrationSchema = z.object({
+  /**
+   * Versioned envelope (v1). Absent today for v0/implicit agents; explicit
+   * admission here keeps the strict schema forward-compatible.
+   */
+  protocolVersion: z.number().int().positive().optional(),
+  agentVersion: z.string().max(64).optional(),
   hostId: z.string().min(1).max(128),
   hostName: z.string().min(1).max(255),
   ip: z.string().max(128),
@@ -239,6 +247,8 @@ const AgentRegistrationSchema = z.object({
 }).strict();
 
 const AgentEventsSchema = z.object({
+  /** Versioned envelope (v1). Absent today for v0/implicit agents. */
+  protocolVersion: z.number().int().positive().optional(),
   hostId: z.string().min(1).max(128),
   events: z.array(z.object({
     id: z.string().min(1).max(255),
