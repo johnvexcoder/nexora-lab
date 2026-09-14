@@ -71,7 +71,7 @@ export function SaveBar({
   className?: string;
 }) {
   return (
-    <span className={cn('flex items-center gap-1.5 text-xs', className)}>
+    <span className={cn('flex items-center gap-1.5 text-xs', className)} role="status" aria-live="polite">
       {busy && (
         <>
           <Loader2 className="h-3.5 w-3.5 animate-spin text-accent" />

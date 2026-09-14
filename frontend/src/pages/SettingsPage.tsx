@@ -73,6 +73,10 @@ export default function SettingsPage() {
   const visible = TABS.filter((t) => !t.permission || has(t.permission));
   const mustChange = user?.mustChangePassword ?? false;
 
+  useEffect(() => {
+    if (!visible.some((item) => item.id === tab)) setTab('account');
+  }, [tab, visible]);
+
   const render = () => {
     switch (tab) {
       case 'access':    return <AccessSettings />;
@@ -91,7 +95,7 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="flex flex-col gap-4 sm:gap-5">
+    <main className="mx-auto flex w-full max-w-[1500px] flex-col gap-4 pb-8 sm:gap-5" aria-labelledby="configuration-title">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
@@ -99,7 +103,7 @@ export default function SettingsPage() {
             <Settings className="h-5 w-5" />
           </div>
           <div>
-            <h1 className="fluid-h1 font-display font-bold tracking-tight text-text-primary">Configuration</h1>
+            <h1 id="configuration-title" className="fluid-h1 font-display font-bold tracking-tight text-text-primary">Settings & administration</h1>
             <p className="mt-0.5 text-xs sm:text-sm text-text-muted">
               Signed in as <b className="text-text-secondary">{user?.username}</b>
               {user?.name && <> ({user.name})</>} · <Badge tone="accent">{user?.role}</Badge>
@@ -134,18 +138,39 @@ export default function SettingsPage() {
           Read-only mode is active — settings can be viewed but changes are blocked server-side.
         </div>
       )}
+      {modes?.safeMode && (
+        <div className="flex items-center gap-3 rounded-xl border border-warn/25 bg-warn/10 px-4 py-3 text-sm text-warn" role="status">
+          <Shield className="h-4 w-4 shrink-0" /> Safe mode is active. High-risk operations remain blocked server-side.
+        </div>
+      )}
+      {modes?.emergencyLock && (
+        <div className="flex items-center gap-3 rounded-xl border border-crit/30 bg-crit/10 px-4 py-3 text-sm text-crit" role="alert">
+          <AlertTriangle className="h-4 w-4 shrink-0" /> Emergency lock is active. Review security controls before restoring changes.
+        </div>
+      )}
+      {modes?.guest && (
+        <div className="flex items-center gap-3 rounded-xl border border-info/25 bg-info/10 px-4 py-3 text-sm text-info" role="status">
+          <Users className="h-4 w-4 shrink-0" /> Guest access is enabled. Review its scopes under Access.
+        </div>
+      )}
 
       {/* Navigation — compact pill bar, wraps on all viewports */}
-      <div className="flex flex-wrap gap-1 rounded-xl border border-surface-border bg-surface p-1">
+      <div className="flex gap-1 overflow-x-auto rounded-xl border border-surface-border bg-surface p-1" role="tablist" aria-label="Settings sections">
         {visible.map((t) => {
           const Icon = t.icon;
           const active = tab === t.id;
           return (
             <button
+              type="button"
+              role="tab"
+              id={`settings-tab-${t.id}`}
+              aria-selected={active}
+              aria-controls="settings-panel"
               key={t.id}
               onClick={() => setTab(t.id)}
+              disabled={mustChange && t.id !== 'account'}
               className={cn(
-                'relative flex items-center gap-1.5 whitespace-nowrap rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors cursor-pointer',
+                'relative flex min-h-11 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:pointer-events-none disabled:opacity-40',
                 active ? 'text-accent' : 'text-text-muted hover:text-text-secondary',
               )}
             >
@@ -157,7 +182,7 @@ export default function SettingsPage() {
                 />
               )}
               <Icon className="relative h-3.5 w-3.5 shrink-0" />
-              <span className="relative hidden sm:inline">{t.label}</span>
+              <span className="relative">{t.label}</span>
             </button>
           );
         })}
@@ -166,6 +191,9 @@ export default function SettingsPage() {
       {/* Content */}
       <AnimatePresence mode="wait">
         <motion.div
+          id="settings-panel"
+          role="tabpanel"
+          aria-labelledby={`settings-tab-${tab}`}
           key={tab}
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
@@ -175,6 +203,6 @@ export default function SettingsPage() {
           {render()}
         </motion.div>
       </AnimatePresence>
-    </div>
+    </main>
   );
 }
