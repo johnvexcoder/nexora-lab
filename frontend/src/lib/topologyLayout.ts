@@ -6,6 +6,7 @@
  * - 1D Collision Relaxation: Guarantees 0% overlapping between nodes in the same column
  * - Safe Boundary Insets: Prevents any node from exceeding the left, right, top, or bottom edges
  * - Continuous Bezier Curves: Connects 100% of links with smooth non-inverting curves
+ * - Deterministic Stability: Telemetry-only updates do not move nodes
  */
 
 import type { NetworkLink, NetworkNode } from '@/types';
@@ -46,6 +47,27 @@ export interface TopologyLayout {
   metrics: LayoutMetrics;
   nodes: Map<string, LayoutedNode>;
   cables: Map<string, CableLayout>;
+}
+
+/**
+ * Produce a stable structural key from topology data.
+ * Only node identity (id, type, parentId) and link connectivity (source, target)
+ * are included — telemetry values (cpu, status, temp, etc.) are excluded so
+ * position-preserving memoisation can skip recomputation on metric updates.
+ */
+export function topologyStructureKey(
+  nodes: NetworkNode[],
+  links: NetworkLink[],
+): string {
+  const nk = nodes
+    .map((n) => `${n.id}:${n.type}:${n.parentId ?? ''}`)
+    .sort()
+    .join(',');
+  const lk = links
+    .map((l) => `${l.source}:${l.target}`)
+    .sort()
+    .join(',');
+  return `${nk}|${lk}`;
 }
 
 function clamp(v: number, min: number, max: number): number {
@@ -123,8 +145,19 @@ export function getPresentationMode(w: number, h: number): {
 }
 
 /**
- * Relaxation pass: Prevents overlapping by pushing overlapping items apart
- * while keeping them sorted and clamped within bounds.
+ * Relaxation pass: Prevents overlapping by pushing items apart.
+ *
+ * Uses a greedy-below strategy anchored to each item's targetY:
+ *   1. Sort by (targetY, id) for deterministic tiebreaking
+ *   2. Place first item at its targetY (clamped to bounds)
+ *   3. Each subsequent item goes at max(targetY, prevY + step) so it
+ *      never overlaps the item above while staying as close to its
+ *      target as possible
+ *   4. If the last item overflows maxY, shift the whole group up
+ *
+ * This is far more stable than mean-centre placement: adding or removing
+ * a sibling only shifts items that were *below* it, while items above
+ * keep their exact Y.
  */
 function relax1D(
   items: Array<{ id: string; targetY: number }>,
@@ -141,23 +174,39 @@ function relax1D(
   }
 
   const step = itemHeight + minGap;
-  const count = items.length;
-  const totalRequired = (count - 1) * step;
+
+  // Deterministic sort: targetY first, then id as tiebreaker
+  const sorted = [...items].sort(
+    (a, b) => a.targetY - b.targetY || a.id.localeCompare(b.id),
+  );
+
+  const totalRequired = (sorted.length - 1) * step;
   const available = Math.max(0, maxY - minY);
+  const effectiveStep =
+    totalRequired > available
+      ? Math.max(itemHeight * 0.85, available / Math.max(1, sorted.length - 1))
+      : step;
 
-  // If items cannot all fit without compression, scale spacing proportionally
-  const effectiveStep = totalRequired > available ? Math.max(itemHeight * 0.85, available / (count - 1)) : step;
+  // Greedy-below: anchor first item at its target, push others down as needed
+  const placed: number[] = [];
+  placed[0] = clamp(sorted[0].targetY, minY, maxY);
 
-  // Initialize with targetY sorted
-  const sorted = [...items].sort((a, b) => a.targetY - b.targetY);
+  for (let i = 1; i < sorted.length; i++) {
+    const minYForItem = placed[i - 1] + effectiveStep;
+    placed[i] = clamp(Math.max(sorted[i].targetY, minYForItem), minY, maxY);
+  }
 
-  // Center the group around the mean target
-  const meanTarget = sorted.reduce((sum, item) => sum + item.targetY, 0) / count;
-  const groupStart = clamp(meanTarget - ((count - 1) * effectiveStep) / 2, minY, maxY - (count - 1) * effectiveStep);
+  // If last item overflows, shift entire group up (never down — that would
+  // push the first item above its target, which is less stable)
+  const overflow = placed[sorted.length - 1] - maxY;
+  if (overflow > 0) {
+    for (let i = 0; i < placed.length; i++) {
+      placed[i] = round1(clamp(placed[i] - overflow, minY, maxY));
+    }
+  }
 
   sorted.forEach((item, idx) => {
-    const y = groupStart + idx * effectiveStep;
-    result.set(item.id, round1(clamp(y, minY, maxY)));
+    result.set(item.id, round1(placed[idx]));
   });
 
   return result;
@@ -168,6 +217,7 @@ export function computeTopologyLayout(
   links: NetworkLink[],
   containerWidth: number = 1000,
   containerHeight: number = 540,
+  previousPositions?: ReadonlyMap<string, Pick<LayoutedNode, 'x' | 'y'>>,
 ): TopologyLayout {
   const w = Math.max(320, containerWidth);
   const h = Math.max(460, containerHeight);
@@ -187,7 +237,7 @@ export function computeTopologyLayout(
   const nodeMap = new Map(nodes.map((n) => [n.id, n]));
   const positions = new Map<string, LayoutedNode>();
 
-  // 1. Build parent-child relationships
+  // 1. Build parent-child relationships (deterministic order)
   const parentMap = new Map<string, string>();
   const childrenMap = new Map<string, string[]>();
 
@@ -197,6 +247,11 @@ export function computeTopologyLayout(
       if (!childrenMap.has(n.parentId)) childrenMap.set(n.parentId, []);
       childrenMap.get(n.parentId)!.push(n.id);
     }
+  }
+
+  // Deterministic child order within each parent
+  for (const kids of childrenMap.values()) {
+    kids.sort();
   }
 
   // Infer missing parent links from topology connections
@@ -237,12 +292,22 @@ export function computeTopologyLayout(
 
   for (const n of nodes) getDepth(n);
 
-  // Group nodes by depth level
+  // Group nodes by depth level (deterministic order)
   const levels = new Map<number, NetworkNode[]>();
   for (const n of nodes) {
     const d = depths.get(n.id) ?? getDefaultDepth(n.type);
     if (!levels.has(d)) levels.set(d, []);
     levels.get(d)!.push(n);
+  }
+
+  // Sort each level by parentId then id for deterministic layout
+  for (const nodesInLevel of levels.values()) {
+    nodesInLevel.sort((a, b) => {
+      const pa = parentMap.get(a.id) ?? '';
+      const pb = parentMap.get(b.id) ?? '';
+      if (pa !== pb) return pa.localeCompare(pb);
+      return a.id.localeCompare(b.id);
+    });
   }
 
   const sortedDepths = [...levels.keys()].sort((a, b) => a - b);
@@ -268,11 +333,19 @@ export function computeTopologyLayout(
       const maxSingleCol = Math.floor((h - padY * 2) / (nodeHeight + 10));
 
       if (colNodes.length <= maxSingleCol || colNodes.length <= 6) {
-        // Single column with 1D collision relaxation
-        const targets = colNodes.map((n) => {
+        // Single column with 1D collision relaxation.
+        // Use previous cached positions as the primary anchor for existing
+        // nodes so telemetry updates never move them; fall back to the parent
+        // position (meaningful hierarchy) only for newly discovered nodes.
+        const targets = colNodes.map((n, idx) => {
+          const prev = previousPositions?.get(n.id);
+          if (prev) return { id: n.id, targetY: prev.y };
           const pId = parentMap.get(n.id);
           const parentPos = pId ? positions.get(pId) : undefined;
-          return { id: n.id, targetY: parentPos ? parentPos.y : h / 2 };
+          if (parentPos) return { id: n.id, targetY: parentPos.y };
+          // Orphan root without layout history: spread across the column.
+          const spread = colNodes.length > 1 ? (idx / (colNodes.length - 1)) : 0.5;
+          return { id: n.id, targetY: clamp(minY + spread * (maxY - minY), minY, maxY) };
         });
 
         const yMap = relax1D(targets, minY, maxY, nodeHeight, 12);
@@ -290,9 +363,14 @@ export function computeTopologyLayout(
         const rightTargets: Array<{ id: string; targetY: number }> = [];
 
         colNodes.forEach((n, idx) => {
+          const prev = previousPositions?.get(n.id);
           const pId = parentMap.get(n.id);
           const parentPos = pId ? positions.get(pId) : undefined;
-          const targetY = parentPos ? parentPos.y : h / 2;
+          const targetY = prev
+            ? prev.y
+            : parentPos
+              ? parentPos.y
+              : clamp(minY + 0.5 * (maxY - minY), minY, maxY);
 
           if (idx % 2 === 0) {
             leftTargets.push({ id: n.id, targetY });
@@ -330,10 +408,14 @@ export function computeTopologyLayout(
 
       if (rowNodes.length <= 3) {
         // Single row spread horizontally
-        const targets = rowNodes.map((n) => {
+        const targets = rowNodes.map((n, idx) => {
+          const prev = previousPositions?.get(n.id);
+          if (prev) return { id: n.id, targetY: prev.x };
           const pId = parentMap.get(n.id);
           const parentPos = pId ? positions.get(pId) : undefined;
-          return { id: n.id, targetY: parentPos ? parentPos.x : w / 2 };
+          if (parentPos) return { id: n.id, targetY: parentPos.x };
+          const spread = rowNodes.length > 1 ? (idx / (rowNodes.length - 1)) : 0.5;
+          return { id: n.id, targetY: clamp(minX + spread * (maxX - minX), minX, maxX) };
         });
 
         const xMap = relax1D(targets, minX, maxX, nodeWidth, 10);
@@ -351,9 +433,14 @@ export function computeTopologyLayout(
         const lowerTargets: Array<{ id: string; targetY: number }> = [];
 
         rowNodes.forEach((n, idx) => {
+          const prev = previousPositions?.get(n.id);
           const pId = parentMap.get(n.id);
           const parentPos = pId ? positions.get(pId) : undefined;
-          const targetX = parentPos ? parentPos.x : w / 2;
+          const targetX = prev
+            ? prev.x
+            : parentPos
+              ? parentPos.x
+              : clamp(minX + 0.5 * (maxX - minX), minX, maxX);
 
           if (idx % 2 === 0) {
             upperTargets.push({ id: n.id, targetY: targetX });

@@ -12,6 +12,7 @@ import type { NetworkNode, NetworkLink, ServerRuntime } from '@/types';
 import { cn, clamp, formatMbps } from '@/lib/utils';
 import {
   computeTopologyLayout,
+  topologyStructureKey,
   type TopologyLayout,
   type CableLayout,
 } from '@/lib/topologyLayout';
@@ -110,14 +111,48 @@ export function TopologyCanvas({
   const zoomLimits = variant === 'workspace' ? ZOOM_WORKSPACE : ZOOM_CARD;
 
   // ── Layout computation ────────────────────────────────────────
+  // The layout depends only on the topology *structure* (node ids, types,
+  // parents and link connectivity), never on telemetry values. Telemetry
+  // updates therefore reuse the previous computed positions — nodes cannot
+  // jump from a metric refresh. Previous positions also anchor existing nodes
+  // when a structural change (node added/removed) does force recomputation.
 
   const boardWidth = containerSize.width || 1000;
   const boardHeight = containerSize.height || 500;
 
-  const layout: TopologyLayout = useMemo(
-    () => computeTopologyLayout(nodes, links, boardWidth, boardHeight),
-    [nodes, links, boardWidth, boardHeight],
+  const structureKey = useMemo(
+    () => topologyStructureKey(nodes, links),
+    [nodes, links],
   );
+
+  const prevLayoutRef = useRef<TopologyLayout | null>(null);
+  const prevBoardRef = useRef({ boardWidth, boardHeight });
+
+  // Always-current snapshot for use inside the memo (satisfies exhaustive-deps
+  // while keeping the memo keyed on structure only).
+  const layoutInputRef = useRef({ boardWidth, boardHeight });
+  layoutInputRef.current = { boardWidth, boardHeight };
+
+  const layout: TopologyLayout = useMemo(() => {
+    const { boardWidth: bw, boardHeight: bh } = layoutInputRef.current;
+    const boardUnchanged =
+      prevBoardRef.current.boardWidth === bw && prevBoardRef.current.boardHeight === bh;
+    const next = computeTopologyLayout(
+      nodes,
+      links,
+      bw,
+      bh,
+      // Anchor existing nodes to their prior position on structural changes
+      // (e.g. a container appears/disappears) so unrelated nodes never jump.
+      // On a resize the layout reflows freely to the new container.
+      boardUnchanged ? prevLayoutRef.current?.nodes : undefined,
+    );
+    prevLayoutRef.current = next;
+    prevBoardRef.current = { boardWidth: bw, boardHeight: bh };
+    return next;
+    // Re-compute only when structure or container size changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [structureKey, boardWidth, boardHeight]);
 
   const { width: layoutW, height: layoutH, nodes: finalPositions, cables } = layout;
 
@@ -176,11 +211,8 @@ export function TopologyCanvas({
     }
   }, [containerSize.width, containerSize.height]);
 
-  // Auto-fit when topology data changes (not on resize)
-  const dataKey = useMemo(
-    () => nodes.map((n) => n.id).sort().join(',') + '|' + links.map((l) => l.id).sort().join(','),
-    [nodes, links],
-  );
+  // Auto-fit when topology structure changes (not on resize or telemetry updates)
+  const dataKey = structureKey;
   const prevDataKeyRef = useRef(dataKey);
 
   useEffect(() => {
@@ -532,6 +564,7 @@ export function TopologyCanvas({
                   left: p.x,
                   top: p.y,
                   transform: 'translate(-50%, -50%)',
+                  transition: 'left 350ms ease, top 350ms ease, opacity 250ms ease',
                 }}
               >
                 {nodeElement}
