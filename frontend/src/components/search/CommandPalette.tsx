@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { Search, CornerDownLeft, Server, Bell, Zap, Activity } from 'lucide-react';
+import { Search, CornerDownLeft, Server, Bell, Zap, Activity, Crosshair } from 'lucide-react';
 import { useUiStore } from '@/store/ui';
+import { useTopologyStore, selectFocusNode } from '@/store/topology';
+import { useShallow } from 'zustand/react/shallow';
 import { endpoints } from '@/api/endpoints';
 import { useTelemetry } from '@/hooks/useTelemetry';
 import type { SearchResults } from '@/types';
@@ -16,18 +18,20 @@ interface FlatItem {
   subtitle: string;
   logo: string;
   route: string;
+  topologyNodeId?: string;
 }
 
 const KIND_META = {
-  server: { icon: Server, color: 'text-accent bg-accent/10' },
-  notification: { icon: Bell, color: 'text-info bg-info/10' },
-  action: { icon: Zap, color: 'text-warn bg-warn/10' },
+  server: { icon: Server, color: 'text-accent bg-accent/10', topologyIcon: Crosshair },
+  notification: { icon: Bell, color: 'text-info bg-info/10', topologyIcon: null },
+  action: { icon: Zap, color: 'text-warn bg-warn/10', topologyIcon: null },
 } as const;
 
 export function CommandPalette() {
   const open = useUiStore((s) => s.commandPaletteOpen);
   const setOpen = useUiStore((s) => s.setCommandPaletteOpen);
   const navigate = useNavigate();
+  const storeFocusNode = useTopologyStore(useShallow(selectFocusNode));
   const { servers } = useTelemetry();
 
   const [query, setQuery] = useState('');
@@ -51,12 +55,13 @@ export function CommandPalette() {
         subtitle: `${s.spec.os} · ${s.spec.ip}`,
         logo: s.spec.logo,
         route: `/servers/${s.spec.id}`,
+        topologyNodeId: s.spec.id,
       }));
       return quick;
     }
     const results: SearchResults = data ?? { servers: [], notifications: [], actions: [] };
     return [
-      ...results.servers.map((r) => ({ kind: 'server' as const, ...r })),
+      ...results.servers.map((r) => ({ kind: 'server' as const, ...r, topologyNodeId: r.id })),
       ...results.notifications.map((r) => ({ kind: 'notification' as const, ...r })),
       ...results.actions.map((r) => ({ kind: 'action' as const, ...r })),
     ];
@@ -74,8 +79,12 @@ export function CommandPalette() {
 
   const run = useCallback((item: FlatItem) => {
     setOpen(false);
-    if (item.route) navigate(item.route);
-  }, [navigate, setOpen]);
+    if (item.kind === 'server' && item.topologyNodeId) {
+      storeFocusNode(item.topologyNodeId);
+    } else if (item.route) {
+      navigate(item.route);
+    }
+  }, [navigate, setOpen, storeFocusNode]);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -141,6 +150,8 @@ export function CommandPalette() {
               {items.map((item, i) => {
                 const meta = KIND_META[item.kind];
                 const Icon = meta.icon;
+                const showTopologyIcon = item.kind === 'server' && item.topologyNodeId;
+                const TopologyIcon = meta.topologyIcon;
                 return (
                   <button
                     key={`${item.kind}-${item.id}`}
@@ -158,6 +169,9 @@ export function CommandPalette() {
                       <span className="block truncate text-sm font-medium text-text-primary">{item.title}</span>
                       <span className="block truncate text-xs text-text-muted">{item.subtitle}</span>
                     </span>
+                    {showTopologyIcon && TopologyIcon && (
+                      <TopologyIcon className="h-3.5 w-3.5 text-text-muted opacity-60" aria-label="Focus in topology" />
+                    )}
                     {i === active && <CornerDownLeft className="h-3.5 w-3.5 text-text-muted" />}
                   </button>
                 );

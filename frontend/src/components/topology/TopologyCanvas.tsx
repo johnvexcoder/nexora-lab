@@ -31,6 +31,8 @@ import {
   type NodeInspectorAnchor,
 } from '@/components/topology/NodeInspector';
 import type { InfraMetrics } from '@/lib/infrastructure';
+import { useTopologyStore, selectSelectedNodeId, selectFocusedNodeId, selectNode, selectFocusNode } from '@/store/topology';
+import { useShallow } from 'zustand/react/shallow';
 
 // ── Constants ──────────────────────────────────────────────────────
 
@@ -380,9 +382,39 @@ export function TopologyCanvas({
   // ── Selection state ───────────────────────────────────────────
 
   const [hoveredNode, setHoveredNode] = useState<NetworkNode | null>(null);
-  const [selectedNode, setSelectedNode] = useState<NetworkNode | null>(null);
   const [hoveredLink, setHoveredLink] = useState<NetworkLink | null>(null);
   const [selectedLink, setSelectedLink] = useState<NetworkLink | null>(null);
+
+  const selectedNodeId = useTopologyStore(useShallow(selectSelectedNodeId));
+  const focusedNodeId = useTopologyStore(useShallow(selectFocusedNodeId));
+  const storeSelectNode = useTopologyStore(useShallow(selectNode));
+  const selectedNode = useMemo(
+    () => nodes.find((n) => n.id === selectedNodeId) ?? null,
+    [nodes, selectedNodeId],
+  );
+
+  // ── Focus node (pan/zoom to center) ───────────────────────────────
+  const prevFocusedNodeIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (focusedNodeId && focusedNodeId !== prevFocusedNodeIdRef.current) {
+      prevFocusedNodeIdRef.current = focusedNodeId;
+      const node = nodes.find((n) => n.id === focusedNodeId);
+      if (node && finalPositions.has(node.id)) {
+        const p = finalPositions.get(node.id)!;
+        // Select the node in the store
+        storeSelectNode(focusedNodeId);
+        // Pan to center the node with a comfortable zoom level
+        const targetZoom = Math.min(Math.max(zoomLimits.min, 1.0), zoomLimits.max);
+        const c = clampPan(p.x, p.y, targetZoom);
+        setZoom(targetZoom);
+        setPanX(c.x);
+        setPanY(c.y);
+      }
+    } else if (!focusedNodeId) {
+      prevFocusedNodeIdRef.current = null;
+    }
+  }, [focusedNodeId, nodes, finalPositions, zoomLimits.min, zoomLimits.max, clampPan, storeSelectNode]);
 
   // ── World → screen mapping ────────────────────────────────────
 
@@ -480,7 +512,7 @@ export function TopologyCanvas({
                   }
                   onClick={() => {
                     setSelectedLink(link);
-                    setSelectedNode(null);
+                    storeSelectNode(null);
                   }}
                 />
               );
@@ -527,7 +559,7 @@ export function TopologyCanvas({
               selected: isSelected,
               hovered: isHovered,
               onSelect: () => {
-                setSelectedNode(node);
+                storeSelectNode(node.id);
                 setSelectedLink(null);
               },
               onHoverStart: () => setHoveredNode(node),
@@ -662,7 +694,7 @@ export function TopologyCanvas({
                 server={serverByNodeId.get(selectedNode.id)}
                 nodeById={nodeById}
                 anchor={anchor}
-                onClose={() => setSelectedNode(null)}
+                onClose={() => storeSelectNode(null)}
               />
             );
           })()}
