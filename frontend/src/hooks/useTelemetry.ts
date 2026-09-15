@@ -3,11 +3,20 @@ import { useQuery } from '@tanstack/react-query';
 import { useShallow } from 'zustand/react/shallow';
 import { connectWs, subscribeWs } from '@/api/ws';
 import { endpoints } from '@/api/endpoints';
-import { useTelemetryStore, selectServers } from '@/store/telemetry';
+import {
+  useTelemetryStore,
+  realtimeStatus,
+  selectServers,
+  type RealtimeStatus,
+} from '@/store/telemetry';
 
 /**
  * Bootstraps the live pipeline: hydrates server list from REST, then streams
  * every telemetry tick over WebSocket into the zustand store.
+ *
+ * Surfaces the derived failure/recovery state (`realtime`) so consumers can
+ * distinguish connecting → open → reconnecting → closed, stale telemetry and
+ * partial (some hosts silent) coverage.
  */
 export function useTelemetry() {
   // useShallow is required: selectServers returns a NEW array each call, and
@@ -18,8 +27,13 @@ export function useTelemetry() {
   const hydrate = useTelemetryStore((s) => s.hydrate);
   const connected = useTelemetryStore((s) => s.connected);
   const setConnected = useTelemetryStore((s) => s.setConnected);
+  const wsStatus = useTelemetryStore((s) => s.wsStatus);
+  const setWsStatus = useTelemetryStore((s) => s.setWsStatus);
+  const backendError = useTelemetryStore((s) => s.backendError);
+  const setBackendError = useTelemetryStore((s) => s.setBackendError);
+  const realtime = useTelemetryStore(useShallow((s) => realtimeStatus(s)));
 
-  const { data, isInitialLoading, error } = useQuery({
+  const { data, isInitialLoading, error, isRefetching, refetch } = useQuery({
     queryKey: ['servers'],
     queryFn: endpoints.servers.list,
     refetchInterval: 30_000,
@@ -31,13 +45,33 @@ export function useTelemetry() {
   }, [data, hydrate]);
 
   useEffect(() => {
+    if (error) setBackendError(error);
+    else if (data) setBackendError(null);
+  }, [error, data, setBackendError]);
+
+  useEffect(() => {
     connectWs();
     // The WS client is a page-lifetime singleton: do NOT disconnect here.
     // StrictMode double-mounts would otherwise flap the connection (and cause
     // proxy ECONNRESETs). Just subscribe to status changes.
-    const unsub = subscribeWs((state) => setConnected(state === 'open'));
+    const unsub = subscribeWs((state) => {
+      setConnected(state.status === 'open');
+      setWsStatus(state.status);
+    });
     return () => unsub();
-  }, [setConnected]);
+  }, [setConnected, setWsStatus]);
 
-  return { servers, loading: isInitialLoading, error, connected };
+  return {
+    servers,
+    loading: isInitialLoading,
+    error,
+    refetch,
+    isRefetching,
+    connected,
+    wsStatus,
+    backendError,
+    realtime,
+  };
 }
+
+export type { RealtimeStatus };

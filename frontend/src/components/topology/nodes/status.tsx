@@ -1,5 +1,6 @@
 import type { InfraStatus, InfraMetrics } from '@/lib/infrastructure';
 import { cn } from '@/lib/utils';
+import { STALE_THRESHOLD_MS } from '@/lib/constants';
 
 /**
  * Compact status visuals for topology nodes.
@@ -31,16 +32,31 @@ export function getStatusMeta(status: InfraStatus): StatusMeta {
 }
 
 /** Threshold (ms) after which telemetry is considered stale. Matches backend STALE_THRESHOLD_MS. */
-export const STALE_THRESHOLD_MS = 30_000;
+export { STALE_THRESHOLD_MS };
 
-/** Check if metrics are stale based on lastSeen timestamp. */
+/**
+ * True when we have observed data for this node at least once. A node that
+ * never produced a reading is `unknown` — distinct from `stale` (observed,
+ * then aged out). Missing data is never reported as measured.
+ */
+export function hasObservation(metrics: InfraMetrics | undefined): boolean {
+  return Boolean(metrics?.lastSeen);
+}
+
+/** Check if previously observed metrics have aged past the stale threshold. */
 export function isStale(metrics: InfraMetrics | undefined): boolean {
-  if (!metrics?.lastSeen) return true;
+  if (!metrics?.lastSeen) return false;
   return Date.now() - metrics.lastSeen > STALE_THRESHOLD_MS;
 }
 
-/** Compute effective status including stale detection. */
+/**
+ * Compute effective status including staleness/observation:
+ *  - never observed      → `unknown`
+ *  - observed, aged      → `stale`
+ *  - otherwise           → provider-reported status
+ */
 export function getEffectiveStatus(status: InfraStatus, metrics?: InfraMetrics): InfraStatus {
+  if (!hasObservation(metrics)) return 'unknown';
   if (isStale(metrics)) return 'stale';
   return status;
 }

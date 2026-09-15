@@ -856,7 +856,7 @@ export function TopologyCanvas({
             </span>
             <span className="flex items-center gap-1.5 text-[11px] text-text-muted animate-pulse">
               <span className="h-2 w-2 rounded-full border-2 border-dashed border-slate-500 bg-transparent" />
-              Stale Data
+              Stale / Awaiting data
             </span>
             {showStatusBar && (
               <span className="ml-auto font-mono text-[11px] text-text-muted">

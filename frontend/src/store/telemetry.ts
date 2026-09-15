@@ -1,12 +1,18 @@
 import { create } from 'zustand';
+import type { WsStatus } from '@/api/ws';
 import type { MetricSnapshot, ServerRuntime, ServerStatus, GlobalHealth } from '@/types';
 import { pct } from '@/lib/utils';
+import { STALE_THRESHOLD_MS } from '@/lib/constants';
 
 interface TelemetryState {
   servers: Record<string, ServerRuntime>;
   snapshots: Record<string, MetricSnapshot>;
   lastTickAt: number | null;
   connected: boolean;
+  /** Live WebSocket transport state. */
+  wsStatus: WsStatus;
+  /** Most recent REST query failure (backend unreachable, 5xx, forbidden, …). */
+  backendError: Error | null;
   /** ring buffers keyed by serverId for sparklines */
   sparklines: Record<string, Record<'cpu' | 'ram' | 'disk' | 'temp' | 'netUp' | 'netDown' | 'load', number[]>>;
 
@@ -14,6 +20,8 @@ interface TelemetryState {
   hydrate: (servers: ServerRuntime[]) => void;
   patchServer: (server: ServerRuntime) => void;
   setConnected: (connected: boolean) => void;
+  setWsStatus: (status: WsStatus) => void;
+  setBackendError: (error: Error | null) => void;
 }
 
 const HISTORY_LEN = 90;
@@ -27,6 +35,8 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => ({
   snapshots: {},
   lastTickAt: null,
   connected: false,
+  wsStatus: 'connecting',
+  backendError: null,
   sparklines: {},
 
   applySnapshots: (snapshots) =>
@@ -87,6 +97,15 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => ({
     })),
 
   setConnected: (connected) => set({ connected }),
+
+  setWsStatus: (wsStatus) =>
+    set((state) => ({
+      wsStatus,
+      // While the socket is not open the store can never be freshly connected.
+      connected: wsStatus === 'open' ? state.connected : false,
+    })),
+
+  setBackendError: (backendError) => set({ backendError }),
 }));
 
 export function selectServers(state: TelemetryState): ServerRuntime[] {
@@ -122,5 +141,39 @@ export function globalHealthFromServers(servers: ServerRuntime[]): GlobalHealth 
     avgCpu: Math.round(avgCpu * 10) / 10,
     avgRam: Math.round(avgRam * 10) / 10,
     totalUptimePercent: Math.round((online / servers.length) * 1000) / 10,
+  };
+}
+
+/** Derived failure/recovery state of the live telemetry pipeline. */
+export interface RealtimeStatus {
+  connected: boolean;
+  wsStatus: WsStatus;
+  /** Servers known from the REST hydration. */
+  totalServers: number;
+  /** Servers that produced at least one WebSocket telemetry snapshot. */
+  reportingServers: number;
+  /** Known but silent servers (never ticked or lost). */
+  missingServers: number;
+  /** Some servers known, fewer actually reporting. */
+  partial: boolean;
+  /** Milliseconds since the last telemetry tick (null before the first tick). */
+  telemetryAgeMs: number | null;
+  /** True when the last tick is older than STALE_THRESHOLD_MS. */
+  stale: boolean;
+}
+
+export function realtimeStatus(state: TelemetryState): RealtimeStatus {
+  const totalServers = Object.keys(state.servers).length;
+  const reportingServers = Object.keys(state.snapshots).length;
+  const telemetryAgeMs = state.lastTickAt == null ? null : Date.now() - state.lastTickAt;
+  return {
+    connected: state.connected,
+    wsStatus: state.wsStatus,
+    totalServers,
+    reportingServers,
+    missingServers: Math.max(0, totalServers - reportingServers),
+    partial: totalServers > 0 && reportingServers > 0 && reportingServers < totalServers,
+    telemetryAgeMs,
+    stale: telemetryAgeMs != null ? telemetryAgeMs > STALE_THRESHOLD_MS : false,
   };
 }

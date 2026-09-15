@@ -3,6 +3,7 @@ import { Outlet, useLocation } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { Topbar } from './Topbar';
 import { RightRail } from './RightRail';
+import { RecoveryBanner } from './RecoveryBanner';
 import { BottomNav } from './BottomNav';
 import { CommandPalette } from '@/components/search/CommandPalette';
 import { NotificationToasts } from '@/components/notifications/NotificationToasts';
@@ -22,6 +23,7 @@ export function AppLayout() {
     <div className="flex h-dvh min-h-0 w-full flex-col overflow-hidden">
       <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:left-3 focus:top-3 focus:z-50 focus:rounded-lg focus:bg-surface focus:px-4 focus:py-2 focus:text-text-primary focus:ring-2 focus:ring-accent">Skip to main content</a>
       <Topbar />
+      <RecoveryBanner />
 
       <div className="relative min-h-0 flex-1 overflow-x-hidden">
         {/* Center workspace — full-bleed for the topology-first dashboard,

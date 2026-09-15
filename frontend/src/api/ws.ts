@@ -21,6 +21,8 @@ let socket: WebSocket | null = null;
 let reconnectTimer: number | undefined;
 let reconnectDelay = INITIAL_BACKOFF_MS;
 let running = true;
+let reconnectAttempt = 0;
+let nextRetryAt = 0;
 let telemetryFrame: number | undefined;
 const pendingSnapshots = new Map<string, MetricSnapshot>();
 
@@ -40,24 +42,45 @@ function clearPendingTelemetry(): void {
 
 export type WsStatus = 'connecting' | 'open' | 'closed' | 'reconnecting';
 
-const listeners = new Set<(status: WsStatus) => void>();
+export interface WsState {
+  status: WsStatus;
+  /** Consecutive reconnect attempts since the last successful open socket. */
+  attempt: number;
+  /** Backoff ms currently scheduled before the next attempt (0 when not reconnecting). */
+  backoffMs: number;
+}
 
-export function subscribeWs(cb: (status: WsStatus) => void): () => void {
+const listeners = new Set<(state: WsState) => void>();
+
+export function subscribeWs(cb: (state: WsState) => void): () => void {
   listeners.add(cb);
-  cb(currentStatus());
+  cb(currentState());
   return () => listeners.delete(cb);
 }
 
-function currentStatus(): WsStatus {
-  if (!running) return 'closed';
-  if (!socket) return 'connecting';
-  if (socket.readyState === WebSocket.OPEN) return 'open';
-  if (socket.readyState === WebSocket.CONNECTING) return 'connecting';
-  return 'reconnecting';
+/** Latest WebSocket transport state — safe to read during render (updates only on transitions). */
+export function getWsState(): WsState {
+  return currentState();
 }
 
-function emit(status: WsStatus): void {
-  listeners.forEach((cb) => cb(status));
+function currentState(): WsState {
+  let status: WsStatus = 'closed';
+  if (running) {
+    if (!socket || socket.readyState === WebSocket.CLOSED || socket.readyState === WebSocket.CLOSING) {
+      status = reconnectAttempt > 0 ? 'reconnecting' : 'connecting';
+    } else if (socket.readyState === WebSocket.OPEN) {
+      status = 'open';
+    } else {
+      status = 'connecting';
+    }
+  }
+  const backoffMs = status === 'reconnecting' ? Math.max(0, nextRetryAt - Date.now()) : 0;
+  return { status, attempt: reconnectAttempt, backoffMs };
+}
+
+function emit(state?: WsState): void {
+  const s = state ?? currentState();
+  listeners.forEach((cb) => cb(s));
 }
 
 /**
@@ -81,12 +104,14 @@ function open(): void {
 
   const ws = new WebSocket(WS_URL);
   socket = ws;
-  emit('connecting');
+  emit({ status: 'connecting', attempt: reconnectAttempt, backoffMs: 0 });
 
   ws.onopen = () => {
     if (ws !== socket) return; // a newer socket took over
     reconnectDelay = INITIAL_BACKOFF_MS;
-    emit('open');
+    reconnectAttempt = 0;
+    nextRetryAt = 0;
+    emit({ status: 'open', attempt: 0, backoffMs: 0 });
   };
 
   ws.onmessage = (event) => {
@@ -120,7 +145,9 @@ function open(): void {
     socket = null;
     clearPendingTelemetry();
     if (!running) return;
-    emit('reconnecting');
+    reconnectAttempt += 1;
+    nextRetryAt = Date.now() + reconnectDelay;
+    emit({ status: 'reconnecting', attempt: reconnectAttempt, backoffMs: reconnectDelay });
     reconnectTimer = window.setTimeout(() => {
       reconnectTimer = undefined;
       open();
@@ -149,7 +176,27 @@ export function disconnectWs(): void {
     s.onclose = null;
     s.close();
   }
-  emit('closed');
+  emit({ status: 'closed', attempt: reconnectAttempt, backoffMs: 0 });
+}
+
+/**
+ * Force an immediate reconnect attempt (manual "Retry" affordance). Resets the
+ * backoff to its initial value so a user action feels instant.
+ */
+export function retryWsNow(): void {
+  if (!running) return;
+  if (reconnectTimer !== undefined) {
+    window.clearTimeout(reconnectTimer);
+    reconnectTimer = undefined;
+  }
+  reconnectDelay = INITIAL_BACKOFF_MS;
+  nextRetryAt = 0;
+  if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) {
+    emit();
+    return;
+  }
+  reconnectAttempt = 0;
+  open();
 }
 
 /** Reconnect immediately if the tab becomes visible and we dropped offline. */

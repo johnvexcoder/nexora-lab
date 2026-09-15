@@ -1,3 +1,10 @@
+/**
+ * Threshold (ms) after which live telemetry is considered stale. Matches the
+ * backend agent/telemetry STALE_THRESHOLD_MS. Shared by topology node status,
+ * the telemetry store and the recovery banner.
+ */
+export const STALE_THRESHOLD_MS = 30_000;
+
 export const STATUS_META = {
   online: { label: 'Online', color: 'text-success', bg: 'bg-success', dot: 'bg-success', ring: 'ring-success/20' },
   degraded: { label: 'Degraded', color: 'text-warn', bg: 'bg-warn', dot: 'bg-warn', ring: 'ring-warn/20' },

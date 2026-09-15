@@ -1,15 +1,18 @@
 import { useState, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { useTelemetry } from '@/hooks/useTelemetry';
 import { useClusters } from '@/hooks/useQueries';
+import { ApiError } from '@/api/client';
 import { ServerCard } from '@/components/server/ServerCard';
 import { ClusterCard } from '@/components/server/ClusterCard';
 import { DockerProfileCards } from '@/components/dashboard/DockerProfileCard';
 import { ProviderDiagnosticsBanner } from '@/components/provider/ProviderDiagnosticsBanner';
 import { Skeleton } from '@/components/ui/Status';
 import { Badge } from '@/components/ui/Badge';
+import { EmptyState, ErrorState, ForbiddenState } from '@/components/ui/StateViews';
 import type { ServerRole } from '@/types';
 import { cn } from '@/lib/utils';
-import { Server as ServerIcon, Database, Box, Shield, Wifi, Filter, ChevronDown } from 'lucide-react';
+import { Server as ServerIcon, Database, Box, Shield, Wifi, Filter, ChevronDown, ServerOff } from 'lucide-react';
 
 const FILTERS: Array<{ id: ServerRole | 'all'; label: string; icon: React.ReactNode }> = [
   { id: 'all', label: 'All', icon: <ServerIcon className="h-3.5 w-3.5" /> },
@@ -31,11 +34,15 @@ const PROVIDER_GROUPS = [
 ] as const;
 
 export default function ServersPage() {
-  const { servers, loading } = useTelemetry();
+  const { servers, loading, error, refetch, isRefetching } = useTelemetry();
   const { clusters, isLoading: clustersLoading } = useClusters();
   const [filter, setFilter] = useState<ServerRole | 'all'>('all');
   const [groupByProvider, setGroupByProvider] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(PROVIDER_GROUPS.map(g => g.id)));
+
+  const forbidden = error instanceof ApiError && error.status === 403;
+  const backendDown = !!error && !forbidden;
+  const hostCount = servers.length;
 
   const online = servers.filter((s) => s.status === 'online').length;
   const degraded = servers.filter((s) => s.status === 'degraded').length;
@@ -72,12 +79,18 @@ export default function ServersPage() {
         <div>
           <h1 className="fluid-h1 font-display font-bold tracking-tight text-text-primary">Servers</h1>
           <p className="mt-1 text-sm text-text-muted">
-            {servers.length} hosts · <span className="text-success">{online} online</span>
-            {degraded > 0 && <> · <span className="text-warn">{degraded} degraded</span></>}
-            {offline > 0 && <> · <span className="text-crit">{offline} offline</span></>}
-            {isClustered
-              ? <> · <span className="text-info">{clusters.length} cluster{clusters.length === 1 ? '' : 's'}</span></>
-              : <> · <span className="text-text-secondary">standalone</span></>}
+            {loading && hostCount === 0 ? (
+              'Loading fleet telemetry…'
+            ) : (
+              <>
+                {hostCount} hosts · <span className="text-success">{online} online</span>
+                {degraded > 0 && <> · <span className="text-warn">{degraded} degraded</span></>}
+                {offline > 0 && <> · <span className="text-crit">{offline} offline</span></>}
+                {isClustered
+                  ? <> · <span className="text-info">{clusters.length} cluster{clusters.length === 1 ? '' : 's'}</span></>
+                  : <> · <span className="text-text-secondary">standalone</span></>}
+              </>
+            )}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -225,11 +238,36 @@ export default function ServersPage() {
         </div>
       )}
 
-      {servers.length === 0 && !loading && (
-        <div className="flex flex-col items-center gap-4 py-16 text-center text-text-muted">
-          <ServerIcon className="h-12 w-12 text-text-muted/50" />
-          <p>No servers found</p>
-        </div>
+      {hostCount === 0 && !loading && forbidden && (
+        <ForbiddenState
+          title="Fleet access denied"
+          copy="Your account does not have permission to view the server fleet. This can happen when the Core is in configured mode and your role or guest scope excludes server data. Contact a super admin to request access."
+        />
+      )}
+
+      {hostCount === 0 && !loading && backendDown && (
+        <ErrorState
+          title="Backend unreachable"
+          copy="Nexora Core did not return the server fleet. The service may be starting, restarting, or temporarily unavailable."
+          onRetry={() => void refetch()}
+          retrying={isRefetching}
+        />
+      )}
+
+      {hostCount === 0 && !loading && !forbidden && !backendDown && (
+        <EmptyState
+          title="No servers in the fleet"
+          copy="No infrastructure nodes have been discovered yet. Connect the Agent or a Proxmox/Docker provider in the backend, or wait for the next discovery cycle."
+          icon={<ServerOff className="h-6 w-6" aria-hidden="true" />}
+          action={
+            <Link
+              to="/"
+              className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-surface-border bg-surface px-3.5 text-xs font-semibold text-text-secondary transition-colors hover:border-accent/40 hover:text-accent"
+            >
+              View topology
+            </Link>
+          }
+        />
       )}
     </div>
   );

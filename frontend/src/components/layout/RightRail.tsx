@@ -1,7 +1,8 @@
 import { useRef, useEffect, type ReactNode } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Wifi, WifiOff, BellRing, Clock } from 'lucide-react';
+import { Wifi, WifiOff, RefreshCw, BellRing, Clock } from 'lucide-react';
 import { useTelemetry } from '@/hooks/useTelemetry';
+import { getWsState, retryWsNow } from '@/api/ws';
 import { useClock } from '@/hooks/useClock';
 import { useNotificationStore } from '@/store/notifications';
 import { useUiStore } from '@/store/ui';
@@ -22,7 +23,7 @@ function StatusChip({ children }: { children: ReactNode }) {
 
 export function RightRail() {
   const isDesktop = useMediaQuery('(min-width: 1280px)');
-  const { connected } = useTelemetry();
+  const { connected, wsStatus } = useTelemetry();
   const now = useClock();
   const unread = useNotificationStore((s) => s.unread);
   const items = useNotificationStore((s) => s.items);
@@ -34,6 +35,8 @@ export function RightRail() {
   const { data: healthData } = useQuery({ queryKey: ['diagnostics'], queryFn: endpoints.diagnostics, staleTime: 30_000 });
   const isDemo = healthData?.mockMode ?? false;
   const panelRef = useRef<HTMLDivElement>(null);
+  // Only re-reads during a re-render; transport state changes are rare transitions.
+  const reconnectAttempt = wsStatus === 'reconnecting' ? getWsState().attempt : 0;
 
   useEffect(() => {
     function onClick(e: MouseEvent) {
@@ -56,7 +59,17 @@ export function RightRail() {
     <div className="fixed right-4 top-1/2 z-30 -translate-y-1/2 hidden xl:flex flex-col items-end gap-2">
       {/* Connection status */}
       <StatusChip>
-        {connected ? (
+        {wsStatus === 'reconnecting' ? (
+          <span className="flex items-center gap-1.5 text-warn">
+            <RefreshCw className="h-3 w-3 animate-spin" />
+            <span className="font-medium">Reconnecting…</span>
+            {reconnectAttempt > 0 && (
+              <span className="text-[10px] font-normal text-warn/70" aria-label={`reconnect attempt ${reconnectAttempt}`}>
+                #{reconnectAttempt}
+              </span>
+            )}
+          </span>
+        ) : connected ? (
           <span className="flex items-center gap-1.5 text-accent">
             <Wifi className="h-3 w-3" />
             <span className="font-medium">{isDemo ? 'Demo' : 'Live'}</span>
@@ -66,6 +79,17 @@ export function RightRail() {
             <WifiOff className="h-3 w-3" />
             <span className="font-medium">Offline</span>
           </span>
+        )}
+
+        {(wsStatus === 'reconnecting' || (!connected && wsStatus === 'closed')) && (
+          <button
+            type="button"
+            onClick={retryWsNow}
+            className="ml-1 rounded-md border border-current/20 px-1.5 py-0.5 text-[10px] font-semibold transition-opacity hover:opacity-70 cursor-pointer"
+            aria-label="Retry live telemetry connection"
+          >
+            Retry
+          </button>
         )}
       </StatusChip>
 
