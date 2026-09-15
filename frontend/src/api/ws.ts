@@ -21,6 +21,22 @@ let socket: WebSocket | null = null;
 let reconnectTimer: number | undefined;
 let reconnectDelay = INITIAL_BACKOFF_MS;
 let running = true;
+let telemetryFrame: number | undefined;
+const pendingSnapshots = new Map<string, MetricSnapshot>();
+
+function flushTelemetry(): void {
+  telemetryFrame = undefined;
+  if (!running || pendingSnapshots.size === 0) return;
+  const snapshots = [...pendingSnapshots.values()];
+  pendingSnapshots.clear();
+  useTelemetryStore.getState().applySnapshots(snapshots);
+}
+
+function clearPendingTelemetry(): void {
+  if (telemetryFrame !== undefined) window.cancelAnimationFrame(telemetryFrame);
+  telemetryFrame = undefined;
+  pendingSnapshots.clear();
+}
 
 export type WsStatus = 'connecting' | 'open' | 'closed' | 'reconnecting';
 
@@ -87,7 +103,10 @@ function open(): void {
       }
 
       if (msg.type === 'telemetry') {
-        useTelemetryStore.getState().applySnapshots(msg.data);
+        // A burst of frames should produce one store update per paint. Keep
+        // the newest reading for each server while preserving other servers.
+        for (const snapshot of msg.data) pendingSnapshots.set(snapshot.serverId, snapshot);
+        if (telemetryFrame === undefined) telemetryFrame = window.requestAnimationFrame(flushTelemetry);
       } else if (msg.type === 'notifications') {
         useNotificationStore.getState().ingest(msg.data);
       }
@@ -99,6 +118,7 @@ function open(): void {
   ws.onclose = () => {
     if (ws !== socket) return; // stale close from an older socket
     socket = null;
+    clearPendingTelemetry();
     if (!running) return;
     emit('reconnecting');
     reconnectTimer = window.setTimeout(() => {
@@ -118,6 +138,7 @@ function open(): void {
 
 export function disconnectWs(): void {
   running = false;
+  clearPendingTelemetry();
   if (reconnectTimer !== undefined) {
     window.clearTimeout(reconnectTimer);
     reconnectTimer = undefined;

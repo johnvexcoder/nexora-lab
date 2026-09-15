@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import {
   WifiOff, X,
   Plus, Minus, Maximize2, RefreshCw,
@@ -88,7 +88,8 @@ function useElementSize<T extends HTMLElement>() {
     const ro = new ResizeObserver((entries) => {
       const entry = entries[0]?.contentRect;
       if (entry && entry.width > 0 && entry.height > 0) {
-        setSize({ width: entry.width, height: entry.height });
+        setSize((previous) => previous.width === entry.width && previous.height === entry.height
+          ? previous : { width: entry.width, height: entry.height });
       }
     });
     ro.observe(el);
@@ -115,6 +116,7 @@ export function TopologyCanvas({
   className,
 }: TopologyCanvasProps) {
   const { ref: containerRef, size: containerSize } = useElementSize<HTMLDivElement>();
+  const prefersReducedMotion = useReducedMotion();
   const zoomLimits = variant === 'workspace' ? ZOOM_WORKSPACE : ZOOM_CARD;
 
   // ── Layout computation ────────────────────────────────────────
@@ -167,13 +169,11 @@ export function TopologyCanvas({
 
   const serverByNodeId = useMemo(() => {
     const m = new Map<string, ServerRuntime>();
+    const byId = new Map(servers.map((server) => [server.spec.id, server]));
+    const byHostname = new Map(servers.map((server) => [server.spec.hostname, server]));
+    const byIp = new Map(servers.filter((server) => server.spec.ip).map((server) => [server.spec.ip, server]));
     for (const n of nodes) {
-      const match = servers.find(
-        (s) =>
-          s.spec.id === n.id ||
-          s.spec.hostname === n.label ||
-          (n.ip && s.spec.ip === n.ip),
-      );
+      const match = byId.get(n.id) ?? byHostname.get(n.label) ?? (n.ip ? byIp.get(n.ip) : undefined);
       if (match) m.set(n.id, match);
     }
     return m;
@@ -542,7 +542,7 @@ export function TopologyCanvas({
               );
             })}
 
-            <MovingLightPackets links={links} cables={cables} />
+            {!prefersReducedMotion && <MovingLightPackets links={links} cables={cables} />}
           </svg>
 
           {/* ── HTML Layer (Device Cards) ──────────────────── */}
@@ -732,9 +732,10 @@ export function TopologyCanvas({
       {selectedLink && (
         <AnimatePresence>
           <motion.div
-            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+            initial={prefersReducedMotion ? false : { opacity: 0, y: 10, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.95 }}
+            transition={{ duration: prefersReducedMotion ? 0 : 0.2 }}
             className="absolute bottom-3 right-3 z-30 w-80 rounded-xl border border-surface-border bg-surface-elevated/95 p-4 shadow-2xl backdrop-blur-md"
           >
             <div className="mb-3 flex items-center justify-between border-b border-surface-border pb-2.5">
@@ -742,8 +743,9 @@ export function TopologyCanvas({
                 Connection Details
               </span>
               <button
+                type="button"
                 onClick={() => setSelectedLink(null)}
-                className="rounded-lg p-1 text-text-muted transition-colors hover:bg-surface-elevated hover:text-text-primary cursor-pointer"
+                className="min-h-9 min-w-9 rounded-lg p-2 text-text-muted transition-colors hover:bg-surface-elevated hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                 aria-label="Close details"
               >
                 <X className="h-4 w-4" />
@@ -765,22 +767,25 @@ export function TopologyCanvas({
       {showControls && nodes.length > 0 && (
         <div className="absolute bottom-3 left-3 z-30 flex flex-col gap-1">
           <button
+            type="button"
             onClick={zoomIn}
-            className="flex h-8 w-8 items-center justify-center rounded-lg border border-surface-border bg-surface-elevated/90 text-text-secondary transition-colors hover:bg-surface-hover hover:text-text-primary cursor-pointer"
+            className="flex h-10 w-10 items-center justify-center rounded-lg border border-surface-border bg-surface-elevated/90 text-text-secondary transition-colors hover:bg-surface-hover hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
             aria-label="Zoom in"
           >
             <Plus className="h-4 w-4" />
           </button>
           <button
+            type="button"
             onClick={zoomOut}
-            className="flex h-8 w-8 items-center justify-center rounded-lg border border-surface-border bg-surface-elevated/90 text-text-secondary transition-colors hover:bg-surface-hover hover:text-text-primary cursor-pointer"
+            className="flex h-10 w-10 items-center justify-center rounded-lg border border-surface-border bg-surface-elevated/90 text-text-secondary transition-colors hover:bg-surface-hover hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
             aria-label="Zoom out"
           >
             <Minus className="h-4 w-4" />
           </button>
           <button
+            type="button"
             onClick={fitToView}
-            className="flex h-8 w-8 items-center justify-center rounded-lg border border-surface-border bg-surface-elevated/90 text-text-secondary transition-colors hover:bg-surface-hover hover:text-text-primary cursor-pointer"
+            className="flex h-10 w-10 items-center justify-center rounded-lg border border-surface-border bg-surface-elevated/90 text-text-secondary transition-colors hover:bg-surface-hover hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
             aria-label="Fit to view"
           >
             <Maximize2 className="h-4 w-4" />
@@ -1018,9 +1023,19 @@ function CableLayer({
         strokeWidth={16}
         strokeLinecap="round"
         className="cursor-pointer pointer-events-auto"
+        role="button"
+        tabIndex={0}
+        aria-label={`Connection from ${link.source} to ${link.target}, ${st}`}
+        aria-pressed={selected}
         onMouseEnter={onHover}
         onMouseLeave={onUnhover}
         onClick={onClick}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            onClick?.();
+          }
+        }}
       />
     </g>
   );

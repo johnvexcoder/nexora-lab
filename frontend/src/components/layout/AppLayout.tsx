@@ -20,12 +20,13 @@ export function AppLayout() {
 
   return (
     <div className="flex h-dvh min-h-0 w-full flex-col overflow-hidden">
+      <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:left-3 focus:top-3 focus:z-50 focus:rounded-lg focus:bg-surface focus:px-4 focus:py-2 focus:text-text-primary focus:ring-2 focus:ring-accent">Skip to main content</a>
       <Topbar />
 
       <div className="relative min-h-0 flex-1 overflow-x-hidden">
         {/* Center workspace — full-bleed for the topology-first dashboard,
             padded to avoid rails on desktop, nav on mobile for all other pages */}
-        <main className={isDashboard ? 'h-full overflow-hidden' : 'h-full overflow-y-auto overflow-x-hidden'}>
+        <main id="main-content" tabIndex={-1} className={isDashboard ? 'h-full overflow-hidden' : 'h-full overflow-y-auto overflow-x-hidden'}>
           {isDashboard ? (
             <Outlet />
           ) : (
