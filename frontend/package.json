@@ -11,7 +11,8 @@
     "build": "tsc --noEmit -p tsconfig.json && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "lint": "tsc --noEmit -p tsconfig.json"
+    "lint": "tsc --noEmit -p tsconfig.json",
+    "test": "node --import tsx --test src/test/*.test.ts"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.62.7",
