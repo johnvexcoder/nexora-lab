@@ -44,7 +44,7 @@ export default function DashboardPage() {
           ═══════════════════════════════════════════════════════════ */}
 
       {/* Top-left: compact greeting (clears icon rail on lg+) */}
-      <div className="absolute left-3 top-3 z-20 lg:left-20">
+      <div className="absolute left-2 top-2 z-20 max-w-[calc(100vw-5rem)] sm:left-3 sm:top-3 lg:left-20">
         <CompactGreeting />
       </div>
 
@@ -73,7 +73,7 @@ export default function DashboardPage() {
       {/* ═══════════════════════════════════════════════════════════
           MOBILE OPERATIONS LAUNCHER + BOTTOM SHEET
           ═══════════════════════════════════════════════════════════ */}
-      <div className="absolute bottom-24 right-4 z-30 lg:hidden">
+      <div className="absolute bottom-[calc(4.75rem+env(safe-area-inset-bottom))] right-3 z-30 lg:hidden">
         <button
           onClick={() => setOpsOpen(true)}
           className="flex items-center gap-2 rounded-xl border border-surface-border/60 bg-surface-input/90 px-3.5 py-2.5 text-xs font-semibold text-text-primary shadow-2xl backdrop-blur-xl transition-colors hover:border-accent/40 hover:text-accent cursor-pointer"
@@ -100,7 +100,7 @@ export default function DashboardPage() {
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
               transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-              className="absolute inset-x-0 bottom-0 max-h-[85dvh] overflow-y-auto rounded-t-2xl border border-surface-border bg-surface-elevated p-4 pb-6"
+              className="absolute inset-x-0 bottom-0 max-h-[85dvh] overflow-y-auto overscroll-contain rounded-t-2xl border border-surface-border bg-surface-elevated p-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))]"
               onClick={(e) => e.stopPropagation()}
               role="dialog"
               aria-modal="true"

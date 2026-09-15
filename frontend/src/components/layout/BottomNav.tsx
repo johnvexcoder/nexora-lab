@@ -30,11 +30,11 @@ function BottomNavItem({
   end: boolean;
 }) {
   return (
-    <NavLink to={to} end={end} className="flex-1">
+    <NavLink to={to} end={end} className="min-w-0 flex-1" aria-label={label}>
       {({ isActive }) => (
         <div
           className={cn(
-            'relative flex flex-col items-center gap-1 py-2 transition-colors',
+            'relative flex min-h-14 flex-col items-center justify-center gap-1 py-1.5 transition-colors',
             isActive ? 'text-accent' : 'text-text-muted',
           )}
         >
@@ -61,7 +61,7 @@ export function BottomNav() {
   return (
     <nav
       aria-label="Navigation"
-      className="fixed inset-x-0 bottom-0 z-40 flex border-t border-surface-border/60 bg-surface-input/90 px-2 pb-safe backdrop-blur-xl lg:hidden"
+      className="fixed inset-x-0 bottom-0 z-40 flex border-t border-surface-border/60 bg-surface-input/95 px-1 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden"
     >
       {NAV_ITEMS.map((item) => (
         <BottomNavItem key={item.to} {...item} />

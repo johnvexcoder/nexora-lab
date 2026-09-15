@@ -59,11 +59,11 @@ export function Topbar() {
   }
 
   return (
-    <header className="relative z-20 flex h-12 shrink-0 items-center justify-between gap-3 border-b border-surface-border bg-base/70 px-3 backdrop-blur-xl sm:gap-4 sm:px-5">
+    <header className="relative z-20 flex min-h-12 shrink-0 items-center justify-between gap-2 border-b border-surface-border bg-base/70 px-2 backdrop-blur-xl sm:gap-4 sm:px-5">
       <div className="flex min-w-0 items-center gap-2 sm:gap-3">
         <button
           onClick={() => setCommandPaletteOpen(true)}
-          className="group flex items-center gap-3 rounded-xl border border-surface-border bg-surface px-3.5 py-2 text-sm text-text-muted transition-all hover:border-accent/40 hover:text-text-primary input-focus cursor-pointer"
+          className="group flex h-10 min-w-10 items-center justify-center gap-3 rounded-xl border border-surface-border bg-surface px-2 text-sm text-text-muted transition-all hover:border-accent/40 hover:text-text-primary input-focus cursor-pointer sm:justify-start sm:px-3.5"
           aria-label="Search"
         >
           <Search className="h-4 w-4 shrink-0" />

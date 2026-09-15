@@ -19,7 +19,7 @@ export function AppLayout() {
   }, [status, bootstrap]);
 
   return (
-    <div className="flex h-dvh w-screen flex-col overflow-hidden">
+    <div className="flex h-dvh min-h-0 w-full flex-col overflow-hidden">
       <Topbar />
 
       <div className="relative min-h-0 flex-1 overflow-x-hidden">
@@ -29,7 +29,7 @@ export function AppLayout() {
           {isDashboard ? (
             <Outlet />
           ) : (
-            <div className="mx-auto w-full max-w-[1440px] px-4 py-4 sm:px-5 sm:py-5 lg:pl-24 lg:pr-48 xl:pl-24 xl:pr-52 pb-20 lg:pb-4">
+            <div className="mx-auto w-full max-w-[1440px] px-3 py-3 pb-[calc(5rem+env(safe-area-inset-bottom))] sm:px-5 sm:py-5 lg:pb-4 lg:pl-24 lg:pr-48 xl:pl-24 xl:pr-52">
               <Outlet />
             </div>
           )}

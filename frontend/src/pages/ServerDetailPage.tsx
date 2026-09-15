@@ -88,7 +88,7 @@ export default function ServerDetailPage() {
 
       <section aria-labelledby="resources-title">
         <h2 id="resources-title" className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-text-muted">Live resources</h2>
-        <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-2 min-[400px]:grid-cols-2 lg:grid-cols-4">
           <Resource icon={Cpu} label="CPU" value={`${server.cpu.toFixed(1)}%`} detail={`${spec.cpuCores || '—'} cores`} percent={server.cpu} />
           <Resource icon={MemoryStick} label="Memory" value={`${ram.toFixed(1)}%`} detail={`${formatBytes(server.ramUsedGb)} / ${formatBytes(spec.ramTotalGb)}`} percent={ram} />
           <Resource icon={HardDrive} label="Storage" value={`${disk.toFixed(1)}%`} detail={`${formatBytes(server.diskUsedGb)} / ${formatBytes(spec.diskTotalGb)}`} percent={disk} />

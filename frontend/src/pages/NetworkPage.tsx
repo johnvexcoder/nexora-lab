@@ -57,7 +57,7 @@ export default function NetworkPage() {
         </div>
       </header>
 
-      <section className="relative min-h-[520px] flex-1 overflow-hidden rounded-2xl border border-surface-border bg-base/80 shadow-2xl shadow-black/20 sm:min-h-[640px]" aria-label="Infrastructure topology workspace">
+      <section className="relative min-h-[62dvh] flex-1 overflow-hidden rounded-2xl border border-surface-border bg-base/80 shadow-2xl shadow-black/20 sm:min-h-[640px]" aria-label="Infrastructure topology workspace">
         <TopologyCanvas nodes={scoped.nodes} links={scoped.links} servers={servers} variant="workspace" showControls showLegend showStatusBar isLoading={isLoading} error={error} onRefresh={() => void refetch()} isRefreshing={isFetching} />
       </section>
 

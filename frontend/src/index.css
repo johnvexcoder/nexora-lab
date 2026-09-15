@@ -109,6 +109,15 @@
       radial-gradient(60rem 60rem at 50% 0%, rgb(var(--overlay) / 0.015), transparent 70%);
     background-attachment: fixed;
     overflow-y: hidden;
+    overscroll-behavior: none;
+  }
+
+  button,
+  a,
+  input,
+  select,
+  textarea {
+    touch-action: manipulation;
   }
 
   * {
@@ -226,6 +235,11 @@
   Unlayered so it wins over Tailwind utilities on mobile.
 */
 @media (max-width: 768px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
   .table-cards,
   .table-cards thead,
   .table-cards tbody,

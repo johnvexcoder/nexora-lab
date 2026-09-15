@@ -105,7 +105,7 @@ export default function AlertsPage() {
       </section>
 
       <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-        <div className="flex flex-wrap items-center gap-1 rounded-xl border border-surface-border bg-surface p-1">
+        <div className="no-scrollbar flex max-w-full items-center gap-1 overflow-x-auto rounded-xl border border-surface-border bg-surface p-1">
           {FILTERS.map((f) => (
             <button
               key={f.id}
