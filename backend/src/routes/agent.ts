@@ -28,6 +28,57 @@ function isDockerBridgeIp(ip: string): boolean {
 }
 
 /**
+ * Versioned envelope (v1) backward-compatibility adapter (TASK-038).
+ *
+ * The v1 wire format (see nexora-workspace/docs/CORE-AGENT-PROTOCOL.md) wraps
+ * the unchanged v0 body in an envelope `{ protocolVersion, agentVersion,
+ * nodeId, hostname, mac?, timestamp, payload }`, signalled by the
+ * `X-Protocol-Version` header.
+ *
+ * - Header present and >= 1: unwrap `payload` and route it through the exact
+ *   same v0 handlers — no field or shape changes.
+ * - Header absent: treat the body as v0/implicit and pass it through unchanged
+ *   (full backward compatibility) while logging a one-time deprecation notice.
+ *
+ * Returns null for a malformed v1 envelope (missing/invalid `payload`), which
+ * callers reject with 400. This mirrors the Agent's own auto-downgrade
+ * (it downgrades only on 400/404/406/415/422/501), so a v1 agent that sends a
+ * malformed envelope can self-heal by downgrading to v0.
+ */
+interface UnwrappedEnvelope {
+  /** Effective protocol version (0 = implicit v0). */
+  version: number;
+  /** The actual request payload to validate and process. */
+  payload: Record<string, unknown>;
+}
+
+let v0DeprecationLogged = false;
+function logV0Deprecation(): void {
+  if (v0DeprecationLogged) return;
+  v0DeprecationLogged = true;
+  console.warn('[agent] Received a v0 (implicit) agent message. v0 remains fully supported during migration but is deprecated; migrate agents to the v1 envelope (PROTOCOL_VERSION=1) when ready.');
+}
+
+export function unwrapEnvelope(
+  req: { headers: Record<string, string | string[] | undefined> },
+  body: unknown,
+): UnwrappedEnvelope | null {
+  const header = String(req.headers['x-protocol-version'] ?? '').trim();
+  const version = header ? Number.parseInt(header, 10) : 0;
+  const record = (body && typeof body === 'object' ? body : {}) as Record<string, unknown>;
+
+  if (version >= 1) {
+    const payload = record.payload;
+    if (!payload || typeof payload !== 'object') {
+      return null; // malformed envelope — caller rejects with 400
+    }
+    return { version, payload: payload as Record<string, unknown> };
+  }
+  logV0Deprecation();
+  return { version: 0, payload: record };
+}
+
+/**
  * Extract authoritative LAN IP address for an agent.
  * Handles agents reporting internal Docker bridge IPs (e.g. 172.17.0.1) by
  * falling back to non-bridge network interfaces or the TCP request remote IP.
@@ -270,7 +321,12 @@ export function createAgentRouter(): Router {
     try {
       const agent = (req as any).agent as Record<string, unknown>;
       
-      const parsed = AgentReportSchema.safeParse(req.body);
+      const unwrapped = unwrapEnvelope(req, req.body);
+      if (!unwrapped) {
+        res.status(400).json({ error: 'invalid_envelope' });
+        return;
+      }
+      const parsed = AgentReportSchema.safeParse(unwrapped.payload);
       if (!parsed.success) {
         res.status(400).json({ error: 'invalid_payload', details: parsed.error.issues });
         return;
@@ -463,7 +519,12 @@ export function createAgentRouter(): Router {
   // ── Agent registration (called once on first boot) ──
   router.post('/register', requireAgentAuth, (req: Request, res: Response) => {
     const agent = (req as any).agent as Record<string, unknown>;
-    const parsed = AgentRegistrationSchema.safeParse(req.body);
+    const unwrapped = unwrapEnvelope(req, req.body);
+    if (!unwrapped) {
+      res.status(400).json({ error: 'invalid_envelope' });
+      return;
+    }
+    const parsed = AgentRegistrationSchema.safeParse(unwrapped.payload);
     if (!parsed.success) {
       res.status(400).json({ error: 'invalid_payload', details: parsed.error.issues });
       return;
@@ -519,7 +580,12 @@ export function createAgentRouter(): Router {
   // ── Agent events (batched event reports) ──
   router.post('/events', requireAgentAuth, (req: Request, res: Response) => {
     const agent = (req as any).agent as Record<string, unknown>;
-    const parsed = AgentEventsSchema.safeParse(req.body);
+    const unwrapped = unwrapEnvelope(req, req.body);
+    if (!unwrapped) {
+      res.status(400).json({ error: 'invalid_envelope' });
+      return;
+    }
+    const parsed = AgentEventsSchema.safeParse(unwrapped.payload);
     if (!parsed.success) {
       res.status(400).json({ error: 'invalid_payload', details: parsed.error.issues });
       return;
