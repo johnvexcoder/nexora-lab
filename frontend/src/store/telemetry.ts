@@ -162,11 +162,26 @@ export interface RealtimeStatus {
   stale: boolean;
 }
 
+// Memoization guard for `realtimeStatus` (see below). Because `realtimeStatus`
+// derives `telemetryAgeMs`/`stale` from the wall clock (`Date.now()`), calling
+// it unconditionally returns a NEW object on every call — even when the store
+// has not changed. React's `useSyncExternalStore` (which zustand feeds) requires
+// `getSnapshot` to return the SAME reference for an unchanged store, otherwise it
+// throws "The result of getSnapshot should be cached to avoid an infinite loop"
+// and unmounts the whole app (blank page). Caching by the store-state reference
+// keeps the snapshot stable until the store actually changes.
+let _lastRealtimeState: TelemetryState | null = null;
+let _lastRealtimeStatus: RealtimeStatus | null = null;
+
 export function realtimeStatus(state: TelemetryState): RealtimeStatus {
+  if (_lastRealtimeState === state && _lastRealtimeStatus) {
+    return _lastRealtimeStatus;
+  }
+  _lastRealtimeState = state;
   const totalServers = Object.keys(state.servers).length;
   const reportingServers = Object.keys(state.snapshots).length;
   const telemetryAgeMs = state.lastTickAt == null ? null : Date.now() - state.lastTickAt;
-  return {
+  _lastRealtimeStatus = {
     connected: state.connected,
     wsStatus: state.wsStatus,
     totalServers,
@@ -176,4 +191,5 @@ export function realtimeStatus(state: TelemetryState): RealtimeStatus {
     telemetryAgeMs,
     stale: telemetryAgeMs != null ? telemetryAgeMs > STALE_THRESHOLD_MS : false,
   };
+  return _lastRealtimeStatus;
 }
