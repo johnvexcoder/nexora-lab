@@ -181,7 +181,7 @@ export class TelemetryEngine {
     const now = Date.now();
     const r = Math.random;
 
-    if (r() < 0.0005) {
+    if (r() < 0.0005 && spec.sensors.length > 0) {
       const failures = this.sensorFailures.get(spec.id) ?? new Map<SensorKind, number>();
       const kind = spec.sensors[Math.floor(r() * spec.sensors.length)].kind;
       failures.set(kind, now + 6000 + r() * 24000);
