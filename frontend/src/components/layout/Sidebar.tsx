@@ -33,18 +33,16 @@ function RailIcon({
   end: boolean;
 }) {
   return (
-    <NavLink to={to} end={end}>
+    <NavLink to={to} end={end} className="group relative block w-full" title={label} aria-label={label}>
       {({ isActive }) => (
         <motion.div
-          whileHover={{ scale: 1.08 }}
+          whileHover={{ scale: 1.05 }}
           className={cn(
-            'group relative flex h-11 w-11 items-center justify-center rounded-xl transition-colors',
+            'relative flex h-11 w-full items-center justify-center rounded-xl transition-colors',
             isActive
               ? 'bg-accent/12 text-accent'
               : 'text-text-secondary hover:text-text-primary hover:bg-overlay/5',
           )}
-          title={label}
-          aria-label={label}
         >
           {isActive && (
             <motion.span
@@ -60,6 +58,11 @@ function RailIcon({
   );
 }
 
+/**
+ * Integrated full-height left navigation rail. Sits flush against the app edge
+ * (not a floating centered capsule) so it reads as part of the dashboard shell.
+ * Logo at top, primary navigation in the middle, account/settings at the bottom.
+ */
 export function Sidebar() {
   const isDesktop = useMediaQuery('(min-width: 1024px)');
   const unread = useNotificationStore((s) => s.unread);
@@ -69,27 +72,32 @@ export function Sidebar() {
   return (
     <aside
       aria-label="Main navigation"
-      className="fixed left-4 top-1/2 z-30 -translate-y-1/2 flex-col items-center rounded-2xl border border-surface-border/60 bg-surface-input/80 px-2 py-3 shadow-card backdrop-blur-xl hidden lg:flex"
+      className="hidden h-full w-16 shrink-0 flex-col items-center border-r border-surface-border bg-surface/40 backdrop-blur-xl lg:flex"
     >
-      <div className="mb-2 flex items-center justify-center p-1">
+      <div className="flex h-16 w-full shrink-0 items-center justify-center border-b border-surface-border/60">
         <BrandMark variant="core" className="h-8 w-8" />
       </div>
 
-      <nav className="flex flex-col items-center gap-1.5 py-2">
+      <nav className="flex flex-col items-center gap-1.5 py-4">
         {NAV_ITEMS.map((item) => (
           <RailIcon key={item.to} {...item} />
         ))}
       </nav>
 
-      <div className="mt-3 flex flex-col items-center gap-1.5 border-t border-surface-border/60 pt-3">
+      <div className="mt-auto flex w-full flex-col items-center gap-1.5 border-t border-surface-border/60 py-4">
         {BOTTOM_ITEMS.map((item) => (
           <RailIcon key={item.to} {...item} />
         ))}
+        <div
+          className="mt-1 flex h-1.5 w-1.5 rounded-full bg-accent shadow-glow"
+          title="Live telemetry"
+          aria-hidden="true"
+        />
       </div>
 
       {unread > 0 && (
-        <motion.div
-          className="absolute -right-1 top-6 h-2 w-2 rounded-full bg-accent shadow-glow"
+        <motion.span
+          className="absolute right-1 top-[4.25rem] h-2 w-2 rounded-full bg-accent shadow-glow"
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
         />

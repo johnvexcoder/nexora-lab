@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Bell, LogIn, LogOut, Search, Pencil } from 'lucide-react';
+import { Bell, LogIn, LogOut, Search, Pencil, Wifi, WifiOff, RefreshCw, Clock } from 'lucide-react';
 import { useUiStore } from '@/store/ui';
 import { useNotificationStore } from '@/store/notifications';
 import { useAuthStore } from '@/store/auth';
@@ -10,7 +10,67 @@ import { endpoints } from '@/api/endpoints';
 import { cn } from '@/lib/utils';
 import { SEVERITY_META } from '@/lib/constants';
 import { useNotifications } from '@/hooks/useNotifications';
+import { useTelemetry } from '@/hooks/useTelemetry';
+import { useClock } from '@/hooks/useClock';
+import { getWsState, retryWsNow } from '@/api/ws';
+import { formatClock } from '@/lib/utils';
 import { DispatchModal } from './DispatchModal';
+
+function ConnectionStatus() {
+  const { connected, wsStatus } = useTelemetry();
+  const { data: healthData } = useQuery({ queryKey: ['diagnostics'], queryFn: endpoints.diagnostics, staleTime: 30_000 });
+  const isDemo = healthData?.mockMode ?? false;
+  const reconnectAttempt = wsStatus === 'reconnecting' ? getWsState().attempt : 0;
+
+  return (
+    <div
+      className="flex items-center gap-1.5 rounded-xl border border-surface-border bg-surface px-2.5 py-2 text-xs"
+      role="status"
+    >
+      {wsStatus === 'reconnecting' ? (
+        <span className="flex items-center gap-1.5 text-warn">
+          <RefreshCw className="h-3 w-3 animate-spin" />
+          <span className="hidden font-medium sm:inline">Reconnecting</span>
+        </span>
+      ) : connected ? (
+        <span className="flex items-center gap-1.5 text-success">
+          <Wifi className="h-3 w-3" />
+          <span className="hidden font-medium sm:inline">{isDemo ? 'Demo' : 'Live'}</span>
+        </span>
+      ) : (
+        <span className="flex items-center gap-1.5 text-warn">
+          <WifiOff className="h-3 w-3" />
+          <span className="hidden font-medium sm:inline">Offline</span>
+        </span>
+      )}
+      {reconnectAttempt > 0 && (
+        <button
+          type="button"
+          onClick={retryWsNow}
+          className="ml-1 rounded-md border border-current/20 px-1.5 py-0.5 text-[10px] font-semibold transition-opacity hover:opacity-70 cursor-pointer"
+          aria-label="Retry live telemetry connection"
+        >
+          Retry
+        </button>
+      )}
+    </div>
+  );
+}
+
+function ClockChip() {
+  const now = useClock();
+  return (
+    <div
+      className="hidden items-center gap-1.5 rounded-xl border border-surface-border bg-surface px-2.5 py-2 text-xs xl:flex"
+      aria-live="off"
+    >
+      <Clock className="h-3 w-3 text-text-muted" />
+      <span className="font-display font-semibold tabular leading-none text-text-primary">
+        {formatClock(now)}
+      </span>
+    </div>
+  );
+}
 
 export function Topbar() {
   const navigate = useNavigate();
@@ -24,7 +84,6 @@ export function Topbar() {
   const authStatus = useAuthStore((s) => s.status);
   const authUser = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
-  const { data: healthData } = useQuery({ queryKey: ['diagnostics'], queryFn: endpoints.diagnostics, staleTime: 30_000 });
 
   const [dispatchModalOpen, setDispatchModalOpen] = useState(false);
 
@@ -59,36 +118,39 @@ export function Topbar() {
   }
 
   return (
-    <header className="relative z-20 flex min-h-12 shrink-0 items-center justify-between gap-2 border-b border-surface-border bg-base/70 px-2 backdrop-blur-xl sm:gap-4 sm:px-5">
-      <div className="flex min-w-0 items-center gap-2 sm:gap-3">
-        <button
-          onClick={() => setCommandPaletteOpen(true)}
-          className="group flex h-10 min-w-10 items-center justify-center gap-3 rounded-xl border border-surface-border bg-surface px-2 text-sm text-text-muted transition-all hover:border-accent/40 hover:text-text-primary input-focus cursor-pointer sm:justify-start sm:px-3.5"
-          aria-label="Search"
-        >
-          <Search className="h-4 w-4 shrink-0" />
-          <span className="hidden sm:inline">Search servers, alerts…</span>
-          <kbd className="ml-2 hidden rounded-md border border-surface-border bg-base px-1.5 py-0.5 text-[10px] font-semibold text-text-muted sm:inline">
-            ⌘K
-          </kbd>
-        </button>
+    <header className="relative z-20 flex h-16 shrink-0 items-center gap-2 border-b border-surface-border bg-base/70 px-3 backdrop-blur-xl sm:gap-3 sm:px-5">
+      {/* Prominent search */}
+      <button
+        onClick={() => setCommandPaletteOpen(true)}
+        className="group flex h-10 w-full max-w-xl min-w-0 items-center gap-3 rounded-xl border border-surface-border bg-surface px-3 text-sm text-text-muted transition-all hover:border-accent/40 hover:text-text-primary input-focus cursor-pointer"
+        aria-label="Search"
+      >
+        <Search className="h-4 w-4 shrink-0" />
+        <span className="min-w-0 flex-1 truncate text-left">Search servers, services, alerts…</span>
+        <kbd className="hidden shrink-0 rounded-md border border-surface-border bg-base px-1.5 py-0.5 text-[10px] font-semibold text-text-muted sm:inline">
+          ⌘K
+        </kbd>
+      </button>
+
+      <div className="ml-auto flex shrink-0 items-center gap-2">
         <button
           type="button"
           onClick={() => setDispatchModalOpen(true)}
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-surface-border bg-surface text-text-secondary transition-all hover:border-accent/40 hover:text-accent cursor-pointer"
+          className="hidden h-10 w-10 items-center justify-center rounded-xl border border-surface-border bg-surface text-text-secondary transition-all hover:border-accent/40 hover:text-accent cursor-pointer sm:flex"
           aria-label="New Note or Issue"
           title="New Note or Issue"
         >
           <Pencil className="h-4 w-4" />
         </button>
-      </div>
 
-      <div className="flex shrink-0 items-center gap-2">
-        {/* Mobile notification bell — right rail covers desktop */}
-        <div className="relative lg:hidden" ref={panelRef}>
+        <ConnectionStatus />
+        <ClockChip />
+
+        {/* Notifications */}
+        <div className="relative" ref={panelRef}>
           <button
             onClick={() => setPanelOpen(!panelOpen)}
-            className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-surface-border bg-surface text-text-secondary transition-colors hover:border-accent/40 hover:text-text-primary cursor-pointer"
+            className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-surface-border bg-surface text-text-secondary transition-colors hover:border-accent/40 hover:text-text-primary cursor-pointer"
             aria-label={panelOpen ? 'Close notifications' : 'Open notifications'}
             aria-expanded={panelOpen}
           >
@@ -181,7 +243,7 @@ export function Topbar() {
                 navigate('/');
               }}
               title="Sign out"
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-surface-border bg-surface text-text-secondary transition-colors hover:border-crit/40 hover:text-crit cursor-pointer"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-surface-border bg-surface text-text-secondary transition-colors hover:border-crit/40 hover:text-crit cursor-pointer"
             >
               <LogOut className="h-4 w-4" />
             </button>
