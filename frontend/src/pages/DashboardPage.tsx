@@ -5,6 +5,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { deriveFleetSummary } from '@/lib/fleet';
 import { DashboardGreeting } from '@/components/dashboard/DashboardGreeting';
 import { InfrastructureTopology } from '@/components/dashboard/InfrastructureTopology';
+import { MobileInfrastructureSummary } from '@/components/dashboard/MobileInfrastructureSummary';
 import { SystemResourcesPanel } from '@/components/dashboard/SystemResourcesPanel';
 import { RunningServicesPanel } from '@/components/dashboard/RunningServicesPanel';
 import { StorageUsagePanel } from '@/components/dashboard/StorageUsagePanel';
@@ -39,14 +40,19 @@ export default function DashboardPage() {
         <DashboardGreeting fleet={fleet} ready={ready} />
 
         <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px] xl:grid-cols-[minmax(0,1fr)_360px]">
-          {/* Center-left: topology */}
+          {/* Center-left: topology (desktop/tablet) or compact summary (phone) */}
           <section className="min-w-0">
-            <InfrastructureTopology
-              nodes={nodes}
-              servers={servers}
-              loading={isLoading}
-              error={error}
-            />
+            <div className="hidden lg:block">
+              <InfrastructureTopology
+                nodes={nodes}
+                servers={servers}
+                loading={isLoading}
+                error={error}
+              />
+            </div>
+            <div className="lg:hidden">
+              <MobileInfrastructureSummary fleet={fleet} />
+            </div>
           </section>
 
           {/* Right operational column */}
