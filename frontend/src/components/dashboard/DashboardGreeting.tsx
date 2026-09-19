@@ -30,17 +30,19 @@ function SummaryChip({
   value,
   to,
   tone = 'text-text-primary',
+  className,
 }: {
   icon: React.ReactNode;
   label: string;
   value: number;
   to: string;
   tone?: string;
+  className?: string;
 }) {
   return (
     <Link
       to={to}
-      className="group flex items-center gap-2.5 rounded-xl border border-surface-border/60 bg-surface-input/80 px-3.5 py-2.5 backdrop-blur-md transition-colors hover:border-accent/40"
+      className={cn('group flex items-center gap-2.5 rounded-xl border border-surface-border/60 bg-surface-input/80 px-3.5 py-2.5 backdrop-blur-md transition-colors hover:border-accent/40', className)}
     >
       <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent/10 text-accent">
         {icon}
@@ -84,10 +86,10 @@ export function DashboardGreeting({ fleet, ready = true }: { fleet: FleetSummary
         </p>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2.5">
+      <div className="grid grid-cols-2 gap-2.5 sm:flex sm:flex-wrap sm:items-center">
         <SummaryChip icon={<Server className="h-4 w-4" />} label="Servers" value={fleet.servers} to="/servers" />
-        <SummaryChip icon={<Boxes className="h-4 w-4" />} label="Containers / VMs" value={fleet.workloads} to="/network" />
-        <SummaryChip icon={<Workflow className="h-4 w-4" />} label="Services" value={fleet.services} to="/servers" tone="text-accent" />
+        <SummaryChip icon={<Boxes className="h-4 w-4" />} label="Workloads" value={fleet.workloads} to="/network" />
+        <SummaryChip icon={<Workflow className="h-4 w-4" />} label="Services" value={fleet.services} to="/servers" tone="text-accent" className="col-span-2 sm:col-span-1" />
       </div>
     </motion.section>
   );

@@ -123,15 +123,10 @@ export class TelemetryEngine {
       srv.sensors = this.generateSensors(spec, cpu, tempC, netDown, t);
     }
 
-    // Second pass: reflect parent temperature onto child VMs
+    // Temperature belongs to the entity that reports it. Guest VMs/LXCs do NOT
+    // inherit the parent hypervisor's temperature — each entity's telemetry is
+    // independent (see PART 10 / temperature isolation).
     for (const srv of this.servers.values()) {
-      if (srv.spec.parentId) {
-        const parent = this.servers.get(srv.spec.parentId);
-        if (parent && parent.tempC > 0) {
-          srv.tempC = parent.tempC;
-        }
-      }
-
       // Update history ring buffer
       srv.history = {
         cpu: [...srv.history.cpu.slice(1), srv.cpu],
