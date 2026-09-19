@@ -8,7 +8,9 @@ import { Skeleton } from '@/components/ui/Status';
 import { useClusters } from '@/hooks/useQueries';
 import { useServerEvents, useServerServices } from '@/hooks/useServerDetail';
 import { useTelemetry } from '@/hooks/useTelemetry';
-import { CAPABILITY_META, REACH_META, ROLE_META } from '@/lib/constants';
+import { CAPABILITY_META, REACH_META } from '@/lib/constants';
+import { classifyEntity, entityBadges, iconKeyFor, parentDisplayName } from '@/lib/infrastructure/entity';
+import { INFRA_ICON_COMPONENTS } from '@/lib/icons';
 import { cn, formatBytes, formatUptime, pct } from '@/lib/utils';
 import type { HistoryRange, MetricKey, Notification } from '@/types';
 
@@ -40,6 +42,9 @@ export default function ServerDetailPage() {
   if (!server) return <MessageState title="Server not found" body="This server is no longer present or you do not have access to it." />;
 
   const spec = server.spec;
+  const profile = classifyEntity(server);
+  const parentName = parentDisplayName(profile, servers);
+  const IconComponent = INFRA_ICON_COMPONENTS[iconKeyFor(profile)];
   const ram = pct(server.ramUsedGb, spec.ramTotalGb);
   const disk = pct(server.diskUsedGb, spec.diskTotalGb);
   const stale = now - server.lastSeen > STALE_AFTER_MS;
@@ -63,12 +68,18 @@ export default function ServerDetailPage() {
         <div className="grid gap-5 p-5 sm:p-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
           <div className="min-w-0">
             <div className="mb-3 flex flex-wrap items-center gap-2">
-              <span className="rounded-lg border border-accent/25 bg-accent/10 p-2 text-accent"><Server className="h-5 w-5" aria-hidden="true" /></span>
-              <Badge>{ROLE_META[spec.role]?.label ?? spec.role}</Badge>
-              {cluster && <Badge tone="info">{cluster.name}</Badge>}
+              <span className="rounded-lg border border-accent/25 bg-accent/10 p-2 text-accent">{IconComponent && <IconComponent size={20} />}</span>
+              {entityBadges(profile, cluster?.name).map((b) =>
+                b.cls ? (
+                  <span key={b.label} className={`inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[9px] font-medium ${b.cls}`}>{b.label}</span>
+                ) : (
+                  <Badge key={b.label} tone={b.tone as 'neutral'}>{b.label}</Badge>
+                ),
+              )}
+              {parentName && <Badge tone="info">{parentName}</Badge>}
             </div>
-            <h1 id="server-title" className="truncate font-display text-2xl font-bold tracking-tight text-text-primary sm:text-3xl">{spec.name}</h1>
-            <p className="mt-1 text-sm text-text-secondary">{spec.description || 'Managed infrastructure node'}</p>
+            <h1 id="server-title" className="truncate font-display text-2xl font-bold tracking-tight text-text-primary sm:text-3xl">{profile.displayName}</h1>
+            <p className="mt-1 text-sm text-text-secondary">{spec.description || 'Managed infrastructure node'} · {profile.platform}</p>
             <dl className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-xs text-text-muted">
               <Meta icon={Server} label="Hostname" value={spec.hostname || spec.id} />
               <Meta icon={Network} label="Address" value={spec.ip || 'Not reported'} mono />
@@ -92,7 +103,7 @@ export default function ServerDetailPage() {
           <Resource icon={Cpu} label="CPU" value={`${server.cpu.toFixed(1)}%`} detail={`${spec.cpuCores || '—'} cores`} percent={server.cpu} />
           <Resource icon={MemoryStick} label="Memory" value={`${ram.toFixed(1)}%`} detail={`${formatBytes(server.ramUsedGb)} / ${formatBytes(spec.ramTotalGb)}`} percent={ram} />
           <Resource icon={HardDrive} label="Storage" value={`${disk.toFixed(1)}%`} detail={`${formatBytes(server.diskUsedGb)} / ${formatBytes(spec.diskTotalGb)}`} percent={disk} />
-          <Resource icon={Thermometer} label="Temperature" value={server.tempC > 0 ? `${server.tempC.toFixed(1)} °C` : 'Not available'} detail={server.tempC > 0 ? 'Current reading' : 'Capability not reported'} />
+          <Resource icon={Thermometer} label="Temperature" value={profile.temperature.available ? `${profile.temperature.value!.toFixed(1)} °C` : 'Not available'} detail={profile.temperature.available ? 'Current reading' : 'Capability not reported'} />
         </div>
       </section>
 
