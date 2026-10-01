@@ -2,7 +2,7 @@
   "name": "@nexora/backend",
   "version": "1.0.17",
   "private": true,
-  "description": "Nexora backend - mock telemetry engine, REST API and WebSocket push",
+  "description": "Nexora Lab backend - telemetry engine, REST API and WebSocket push",
   "main": "dist/index.js",
   "engines": {
     "node": ">=24"

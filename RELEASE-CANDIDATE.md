@@ -1,8 +1,12 @@
-# Nexora — Release Candidate Report
+# Nexora Lab — Release Candidate Report
 
 Status: release candidate (TASK-042)
 Branch: `nexora/redesign`
 Package version: 1.0.17
+
+Subsequent Network Map, dashboard, card, and System Tag fixes remain uncommitted. Local
+checks and mock browser review passed; clean-host acceptance remains open in
+[RELEASE-CHECKLIST.md](RELEASE-CHECKLIST.md).
 
 ## Verification (all pass on this working tree)
 

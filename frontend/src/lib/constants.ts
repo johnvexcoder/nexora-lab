@@ -51,7 +51,7 @@ export function statusDotClass(status: string): string {
 
 /** Renders a compact display label for verbose platform names (presentation only). */
 export function compactClusterLabel(name: string): string {
-  const compact = name.replace(/^(HomeLab|Nexora)\s+/i, '').trim();
+  const compact = name.replace(/^(HomeLab|Nexora(?: Lab)?)\s+/i, '').trim();
   return compact || name;
 }
 
@@ -142,13 +142,11 @@ export const CAPABILITY_META: Record<string, { label: string }> = {
 
 /**
  * Shared locked height for server + docker profile cards on the Servers page.
- * Measured from the live dashboard: a ServerCard with the full 3 System Tags
- * (each in its own box under the status column) renders at 474px; DockerProfileCard
- * is locked to the same height so the grid stays uniform regardless of how many
- * containers a host runs (with the container list scrolling past its visible rows).
+ * Device and Docker profile cards share this compact height. Docker container
+ * rows scroll inside the card when their list exceeds the available space.
  * NOTE: this literal must stay a static class string so Tailwind JIT picks it up.
  */
-export const CARD_LOCKED_HEIGHT_CLASS = 'h-[474px]';
+export const CARD_LOCKED_HEIGHT_CLASS = 'h-[400px]';
 
 /** Selectable System Tags shown on host/VM/LXC profile cards (max 3). */
 export const SYSTEM_TAGS: Array<{ id: string; label: string }> = [

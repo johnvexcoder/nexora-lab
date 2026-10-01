@@ -1,4 +1,4 @@
-# Nexora installation and operations
+# Nexora Lab installation and operations
 
 ## Support and release status
 
@@ -6,15 +6,15 @@ Target: a single Linux host with Docker Engine and Compose v2 (`docker compose`)
 
 Install Git, OpenSSL, curl, Docker Engine and its Compose plugin using your distribution/provider instructions. Verify `docker version`, `docker compose version`, available disk and clock synchronization. Access to Docker is effectively administrator access to the host. Native Node is not needed for Compose builds. Builds require access to the npm and container registries.
 
-This candidate has **not** passed the full clean-host release gate. Use [RELEASE-CHECKLIST.md](RELEASE-CHECKLIST.md) before promoting a tag. There are no assumed prepublished Nexora container images.
+This candidate has **not** passed the full clean-host release gate. Use [RELEASE-CHECKLIST.md](RELEASE-CHECKLIST.md) before promoting a tag. There are no assumed prepublished Nexora Lab container images.
 
 ## Clean installation
 
-Use an actual reviewed release tag; `YOUR_REVIEWED_TAG` is a placeholder, not a published release. The old GitHub URL remains the clone URL until the owner performs the repository rename.
+Use an actual reviewed release tag; `YOUR_REVIEWED_TAG` is a placeholder, not a published release.
 
 ```sh
-git clone https://github.com/johnvexcoder/HomeLab-OS.git Nexora
-cd Nexora
+git clone https://github.com/johnvexcoder/nexora-lab.git nexora-lab
+cd nexora-lab
 git fetch --tags
 git checkout YOUR_REVIEWED_TAG
 cp .env.example .env
@@ -66,7 +66,7 @@ Permit TCP/3000 only from your trusted management subnet. Do not router-forward 
 ## Pair a monitored host
 
 1. In Settings → Agents, create an agent for the host and save its full one-time API key. A displayed prefix is not a usable key.
-2. Follow [Nexora Agent's production guide](https://github.com/johnvexcoder/HomeLab-Agent/blob/main/PRODUCTION.md) from the reviewed Agent tag. Set `DASHBOARD_URL=https://YOUR_HOST/api` (or `http://LAN_IP:3000/api` with `ALLOW_INSECURE_HTTP=true` for trusted LAN HTTP). Port 4000 is private in Compose.
+2. Follow [Nexora Agent's production guide](https://github.com/johnvexcoder/nexora-agent/blob/main/PRODUCTION.md) from the reviewed Agent tag. Set `DASHBOARD_URL=https://YOUR_HOST/api` (or `http://LAN_IP:3000/api` with `ALLOW_INSECURE_HTTP=true` for trusted LAN HTTP). Port 4000 is private in Compose.
 3. Confirm registration and fresh metrics in both the Agent logs and dashboard. Authorize the Agent's optional Docker socket override only on Docker hosts. Do not mount a socket into the dashboard.
 4. Rotate the key in Settings when needed and replace the Agent key file. Native agents reload the key per request. For Compose file secrets, recreate the Agent after replacing the host file so the bind mount sees the new file.
 
@@ -74,7 +74,7 @@ Optional direct Proxmox polling needs all of `PROXMOX_HOST`, `PROXMOX_TOKEN_ID`,
 
 ## Optional HTTPS and internet exposure
 
-Prefer a VPN. For direct HTTPS exposure, put a maintained reverse proxy on the same host, bind Nexora to loopback, and configure a real DNS name. For example a host-installed Caddy configuration:
+Prefer a VPN. For direct HTTPS exposure, put a maintained reverse proxy on the same host, bind Nexora Lab to loopback, and configure a real DNS name. For example a host-installed Caddy configuration:
 
 ```caddyfile
 nexora.example.com {
@@ -82,7 +82,7 @@ nexora.example.com {
 }
 ```
 
-Replace the hostname with your own and arrange certificate issuance. Caddy handles WebSocket upgrades. Other proxies must forward `/`, `/api/`, and `/ws`, preserve Host, and support WebSocket upgrades with a long read timeout. A proxy in another container cannot use its own loopback to reach Nexora: use an explicitly configured private network instead.
+Replace the hostname with your own and arrange certificate issuance. Caddy handles WebSocket upgrades. Other proxies must forward `/`, `/api/`, and `/ws`, preserve Host, and support WebSocket upgrades with a long read timeout. A proxy in another container cannot use its own loopback to reach Nexora Lab: use an explicitly configured private network instead.
 
 Set `DEPLOYMENT_PROFILE=hardened`, `COOKIE_SECURE=true`, `CORS_ORIGIN=https://nexora.example.com`, `MOCK_MODE=false`, a 32+ character random encryption key, and verified Proxmox TLS. Recreate the containers. Permit only the proxy's TCP/443 (and TCP/80 if required for certificate issuance) externally. Keep 3000/4000 unreachable externally. Test HTTPS login, Secure cookies, logout, WebSocket updates, and agent pairing through the real proxy. Do not publish until these checks pass. Public `/api/health` is coarse liveness, not confirmation that every monitored host is reachable; authenticated `/api/diagnostics` provides provider detail.
 

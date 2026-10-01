@@ -1,4 +1,4 @@
-# Nexora Core — Agent Protocol
+# Nexora Lab — Agent Protocol
 
 Status: active (versioned migration defined in the Nexora workspace spec)
 Source of truth: `nexora-workspace/docs/CORE-AGENT-PROTOCOL.md`

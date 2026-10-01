@@ -1,9 +1,9 @@
 /**
- * Universal Hierarchical Tree Layout & Collision Relaxation Engine for Network Topology Map
+ * Hierarchical layout for the network topology map.
  *
  * Fully dynamic: Works for arbitrary live setups (Proxmox, Standalone Agents, Docker, Mixed)
  * - Tree-Aware Clustering: Children naturally cluster vertically near their parent
- * - 1D Collision Relaxation: Guarantees 0% overlapping between nodes in the same column
+ * - Fixed lanes and rows keep cards from overlapping
  * - Safe Boundary Insets: Prevents any node from exceeding the left, right, top, or bottom edges
  * - Continuous Bezier Curves: Connects 100% of links with smooth non-inverting curves
  * - Deterministic Stability: Telemetry-only updates do not move nodes
@@ -144,80 +144,11 @@ export function getPresentationMode(w: number, h: number): {
   };
 }
 
-/**
- * Relaxation pass: Prevents overlapping by pushing items apart.
- *
- * Uses a greedy-below strategy anchored to each item's targetY:
- *   1. Sort by (targetY, id) for deterministic tiebreaking
- *   2. Place first item at its targetY (clamped to bounds)
- *   3. Each subsequent item goes at max(targetY, prevY + step) so it
- *      never overlaps the item above while staying as close to its
- *      target as possible
- *   4. If the last item overflows maxY, shift the whole group up
- *
- * This is far more stable than mean-centre placement: adding or removing
- * a sibling only shifts items that were *below* it, while items above
- * keep their exact Y.
- */
-function relax1D(
-  items: Array<{ id: string; targetY: number }>,
-  minY: number,
-  maxY: number,
-  itemHeight: number,
-  minGap: number,
-): Map<string, number> {
-  const result = new Map<string, number>();
-  if (items.length === 0) return result;
-  if (items.length === 1) {
-    result.set(items[0].id, clamp(items[0].targetY, minY, maxY));
-    return result;
-  }
-
-  const step = itemHeight + minGap;
-
-  // Deterministic sort: targetY first, then id as tiebreaker
-  const sorted = [...items].sort(
-    (a, b) => a.targetY - b.targetY || a.id.localeCompare(b.id),
-  );
-
-  const totalRequired = (sorted.length - 1) * step;
-  const available = Math.max(0, maxY - minY);
-  const effectiveStep =
-    totalRequired > available
-      ? Math.max(itemHeight * 0.85, available / Math.max(1, sorted.length - 1))
-      : step;
-
-  // Greedy-below: anchor first item at its target, push others down as needed
-  const placed: number[] = [];
-  placed[0] = clamp(sorted[0].targetY, minY, maxY);
-
-  for (let i = 1; i < sorted.length; i++) {
-    const minYForItem = placed[i - 1] + effectiveStep;
-    placed[i] = clamp(Math.max(sorted[i].targetY, minYForItem), minY, maxY);
-  }
-
-  // If last item overflows, shift entire group up (never down — that would
-  // push the first item above its target, which is less stable)
-  const overflow = placed[sorted.length - 1] - maxY;
-  if (overflow > 0) {
-    for (let i = 0; i < placed.length; i++) {
-      placed[i] = round1(clamp(placed[i] - overflow, minY, maxY));
-    }
-  }
-
-  sorted.forEach((item, idx) => {
-    result.set(item.id, round1(placed[idx]));
-  });
-
-  return result;
-}
-
 export function computeTopologyLayout(
   nodes: NetworkNode[],
   links: NetworkLink[],
   containerWidth: number = 1000,
   containerHeight: number = 540,
-  previousPositions?: ReadonlyMap<string, Pick<LayoutedNode, 'x' | 'y'>>,
 ): TopologyLayout {
   const w = Math.max(320, containerWidth);
   const h = Math.max(460, containerHeight);
@@ -236,6 +167,8 @@ export function computeTopologyLayout(
 
   const nodeMap = new Map(nodes.map((n) => [n.id, n]));
   const positions = new Map<string, LayoutedNode>();
+  let computedWidth = w;
+  let computedHeight = h;
 
   // 1. Build parent-child relationships (deterministic order)
   const parentMap = new Map<string, string>();
@@ -311,7 +244,6 @@ export function computeTopologyLayout(
   }
 
   const sortedDepths = [...levels.keys()].sort((a, b) => a - b);
-  const numLevels = Math.max(1, sortedDepths.length);
 
   if (!isVertical) {
     // ══════════════════════════════════════════════════════════════════════
@@ -322,74 +254,51 @@ export function computeTopologyLayout(
     const minY = padY + nodeHeight / 2;
     const maxY = h - padY - nodeHeight / 2;
 
-    const usableW = w - padX * 2 - nodeWidth;
-    const colStep = numLevels > 1 ? usableW / (numLevels - 1) : 0;
+    const rowGap = 12;
+    const laneGap = 18;
+    const maxRows = Math.max(1, Math.floor((maxY - minY + rowGap) / (nodeHeight + rowGap)));
+    const laneCountByDepth = new Map<number, number>();
+    for (const depth of sortedDepths) {
+      laneCountByDepth.set(depth, Math.max(1, Math.ceil((levels.get(depth)?.length ?? 0) / maxRows)));
+    }
+    const totalLanes = [...laneCountByDepth.values()].reduce((sum, count) => sum + count, 0);
+    const requiredWidth = padX * 2 + totalLanes * nodeWidth + Math.max(0, totalLanes - 1) * laneGap;
+    const desktopWidth = Math.max(w, requiredWidth);
+    computedWidth = desktopWidth;
+    const usableW = desktopWidth - padX * 2 - nodeWidth;
+    const laneStep = totalLanes > 1 ? usableW / (totalLanes - 1) : 0;
+    let laneIndex = 0;
 
-    // First pass: assign X coordinates per column and approximate Y from parent
-    sortedDepths.forEach((d, colIndex) => {
-      const colNodes = levels.get(d) ?? [];
-      const colX = round1(padX + nodeWidth / 2 + colIndex * colStep);
+    // Each hierarchy depth gets as many compact lanes as it needs. A lane
+    // never receives more nodes than can fit vertically, so cards cannot
+    // collapse onto the same bottom coordinate or escape the world bounds.
+    for (const depth of sortedDepths) {
+      const depthNodes = levels.get(depth) ?? [];
+      const laneCount = laneCountByDepth.get(depth) ?? 1;
+      for (let localLane = 0; localLane < laneCount; localLane += 1) {
+        const laneNodes = depthNodes.slice(localLane * maxRows, (localLane + 1) * maxRows);
+        const x = round1(padX + nodeWidth / 2 + laneIndex * laneStep);
+        const span = Math.max(0, laneNodes.length - 1) * (nodeHeight + rowGap);
+        const parentCenters = laneNodes
+          .map((node) => parentMap.get(node.id))
+          .map((parentId) => parentId ? positions.get(parentId)?.y : undefined)
+          .filter((value): value is number => value !== undefined);
+        const preferredCenter = parentCenters.length
+          ? parentCenters.reduce((sum, value) => sum + value, 0) / parentCenters.length
+          : h / 2;
+        const startY = clamp(preferredCenter - span / 2, minY, maxY - span);
 
-      const maxSingleCol = Math.floor((h - padY * 2) / (nodeHeight + 10));
-
-      if (colNodes.length <= maxSingleCol || colNodes.length <= 6) {
-        // Single column with 1D collision relaxation.
-        // Use previous cached positions as the primary anchor for existing
-        // nodes so telemetry updates never move them; fall back to the parent
-        // position (meaningful hierarchy) only for newly discovered nodes.
-        const targets = colNodes.map((n, idx) => {
-          const prev = previousPositions?.get(n.id);
-          if (prev) return { id: n.id, targetY: prev.y };
-          const pId = parentMap.get(n.id);
-          const parentPos = pId ? positions.get(pId) : undefined;
-          if (parentPos) return { id: n.id, targetY: parentPos.y };
-          // Orphan root without layout history: spread across the column.
-          const spread = colNodes.length > 1 ? (idx / (colNodes.length - 1)) : 0.5;
-          return { id: n.id, targetY: clamp(minY + spread * (maxY - minY), minY, maxY) };
+        laneNodes.forEach((node, rowIndex) => {
+          positions.set(node.id, {
+            id: node.id,
+            x,
+            y: round1(startY + rowIndex * (nodeHeight + rowGap)),
+            depth,
+          });
         });
-
-        const yMap = relax1D(targets, minY, maxY, nodeHeight, 12);
-        colNodes.forEach((n) => {
-          const y = yMap.get(n.id) ?? h / 2;
-          positions.set(n.id, { id: n.id, x: colX, y, depth: d });
-        });
-      } else {
-        // High density column (e.g. 10-15 containers): 2 staggered sub-columns
-        const subOffset = Math.min(nodeWidth * 0.52, (colStep * 0.42));
-        const colLeftX = round1(colX - subOffset);
-        const colRightX = round1(colX + subOffset);
-
-        const leftTargets: Array<{ id: string; targetY: number }> = [];
-        const rightTargets: Array<{ id: string; targetY: number }> = [];
-
-        colNodes.forEach((n, idx) => {
-          const prev = previousPositions?.get(n.id);
-          const pId = parentMap.get(n.id);
-          const parentPos = pId ? positions.get(pId) : undefined;
-          const targetY = prev
-            ? prev.y
-            : parentPos
-              ? parentPos.y
-              : clamp(minY + 0.5 * (maxY - minY), minY, maxY);
-
-          if (idx % 2 === 0) {
-            leftTargets.push({ id: n.id, targetY });
-          } else {
-            rightTargets.push({ id: n.id, targetY });
-          }
-        });
-
-        const leftYMap = relax1D(leftTargets, minY, maxY, nodeHeight, 10);
-        const rightYMap = relax1D(rightTargets, minY, maxY, nodeHeight, 10);
-
-        leftTargets.forEach((t) => {
-          positions.set(t.id, { id: t.id, x: colLeftX, y: leftYMap.get(t.id) ?? h / 2, depth: d });
-        });
-        rightTargets.forEach((t) => {
-          positions.set(t.id, { id: t.id, x: colRightX, y: rightYMap.get(t.id) ?? h / 2, depth: d });
-        });
+        laneIndex += 1;
       }
-    });
+    }
 
   } else {
     // ══════════════════════════════════════════════════════════════════════
@@ -397,69 +306,27 @@ export function computeTopologyLayout(
     // ══════════════════════════════════════════════════════════════════════
     const padY = 28;
     const padX = 18;
-    const usableH = h - padY * 2 - nodeHeight;
-    const rowStep = numLevels > 1 ? usableH / (numLevels - 1) : 0;
-    const minX = padX + nodeWidth / 2;
-    const maxX = w - padX - nodeWidth / 2;
+    const columnGap = 10;
+    const rowGap = 16;
+    const levelGap = 28;
+    const columns = Math.max(1, Math.floor((w - 2 * padX + columnGap) / (nodeWidth + columnGap)));
+    const totalRows = sortedDepths.reduce((sum, depth) => sum + Math.ceil((levels.get(depth)?.length ?? 0) / columns), 0);
+    computedHeight = Math.max(h, 2 * padY + totalRows * nodeHeight + Math.max(0, totalRows - sortedDepths.length) * rowGap + Math.max(0, sortedDepths.length - 1) * levelGap);
+    let nextY = padY + nodeHeight / 2;
 
-    sortedDepths.forEach((d, rowIndex) => {
-      const rowNodes = levels.get(d) ?? [];
-      const rowY = round1(padY + nodeHeight / 2 + rowIndex * rowStep);
-
-      if (rowNodes.length <= 3) {
-        // Single row spread horizontally
-        const targets = rowNodes.map((n, idx) => {
-          const prev = previousPositions?.get(n.id);
-          if (prev) return { id: n.id, targetY: prev.x };
-          const pId = parentMap.get(n.id);
-          const parentPos = pId ? positions.get(pId) : undefined;
-          if (parentPos) return { id: n.id, targetY: parentPos.x };
-          const spread = rowNodes.length > 1 ? (idx / (rowNodes.length - 1)) : 0.5;
-          return { id: n.id, targetY: clamp(minX + spread * (maxX - minX), minX, maxX) };
+    for (const depth of sortedDepths) {
+      const levelNodes = levels.get(depth) ?? [];
+      for (let offset = 0; offset < levelNodes.length; offset += columns) {
+        const rowNodes = levelNodes.slice(offset, offset + columns);
+        const rowWidth = rowNodes.length * nodeWidth + (rowNodes.length - 1) * columnGap;
+        const startX = (w - rowWidth) / 2 + nodeWidth / 2;
+        rowNodes.forEach((node, column) => {
+          positions.set(node.id, { id: node.id, x: round1(startX + column * (nodeWidth + columnGap)), y: round1(nextY), depth });
         });
-
-        const xMap = relax1D(targets, minX, maxX, nodeWidth, 10);
-        rowNodes.forEach((n) => {
-          const x = xMap.get(n.id) ?? w / 2;
-          positions.set(n.id, { id: n.id, x, y: rowY, depth: d });
-        });
-      } else {
-        // High density row on mobile: 2 compact sub-rows
-        const subOffset = nodeHeight * 0.48;
-        const upperY = round1(rowY - subOffset);
-        const lowerY = round1(rowY + subOffset);
-
-        const upperTargets: Array<{ id: string; targetY: number }> = [];
-        const lowerTargets: Array<{ id: string; targetY: number }> = [];
-
-        rowNodes.forEach((n, idx) => {
-          const prev = previousPositions?.get(n.id);
-          const pId = parentMap.get(n.id);
-          const parentPos = pId ? positions.get(pId) : undefined;
-          const targetX = prev
-            ? prev.x
-            : parentPos
-              ? parentPos.x
-              : clamp(minX + 0.5 * (maxX - minX), minX, maxX);
-
-          if (idx % 2 === 0) {
-            upperTargets.push({ id: n.id, targetY: targetX });
-          } else {
-            lowerTargets.push({ id: n.id, targetY: targetX });
-          }
-        });
-
-        const upperXMap = relax1D(upperTargets, minX, maxX, nodeWidth, 8);
-        const lowerXMap = relax1D(lowerTargets, minX, maxX, nodeWidth, 8);
-
-        upperTargets.forEach((t) => {
-          positions.set(t.id, { id: t.id, x: upperXMap.get(t.id) ?? w / 2, y: upperY, depth: d });
-        });
-        lowerTargets.forEach((t) => {
-          positions.set(t.id, { id: t.id, x: lowerXMap.get(t.id) ?? w / 2, y: lowerY, depth: d });
-        });
+        nextY += nodeHeight + rowGap;
       }
-    });
+      nextY += levelGap - rowGap;
+    }
   }
 
   // ══════════════════════════════════════════════════════════════════════
@@ -514,8 +381,8 @@ export function computeTopologyLayout(
   }
 
   return {
-    width: w,
-    height: h,
+    width: computedWidth,
+    height: computedHeight,
     metrics: { nodeWidth, nodeHeight, iconSize, fontSize, isVertical, mode, showIpOnNode },
     nodes: positions,
     cables,

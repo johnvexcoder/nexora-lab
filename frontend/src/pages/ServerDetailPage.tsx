@@ -38,7 +38,7 @@ export default function ServerDetailPage() {
   }, []);
 
   if (loading && !server) return <LoadingState />;
-  if (error && !server) return <MessageState title="Server data unavailable" body="Nexora could not load this server. Check the Core connection and try again." />;
+  if (error && !server) return <MessageState title="Server data unavailable" body="Nexora Lab could not load this server. Check the server connection and try again." />;
   if (!server) return <MessageState title="Server not found" body="This server is no longer present or you do not have access to it." />;
 
   const spec = server.spec;

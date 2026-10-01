@@ -254,7 +254,7 @@ export default function ServersPage() {
       {hostCount === 0 && !loading && backendDown && (
         <ErrorState
           title="Backend unreachable"
-          copy="Nexora Core did not return the server fleet. The service may be starting, restarting, or temporarily unavailable."
+          copy="Nexora Lab did not return the server fleet. The service may be starting, restarting, or temporarily unavailable."
           onRetry={() => void refetch()}
           retrying={isRefetching}
         />

@@ -10,6 +10,8 @@ import {
   STALE_THRESHOLD_MS,
 } from '@/components/topology/nodes/status';
 import type { InfraStatus } from '@/lib/infrastructure';
+import { computeTopologyLayout } from '@/lib/topologyLayout';
+import type { NetworkLink, NetworkNode } from '@/types';
 
 describe('topology store', () => {
   beforeEach(() => {
@@ -157,5 +159,44 @@ describe('topology node status', () => {
       assert.equal(selectSelectedNodeId(state), 'a');
       assert.equal(selectFocusedNodeId(state), 'b');
     });
+  });
+});
+
+describe('topology layout', () => {
+  it('keeps a dense infrastructure tree inside the world without overlapping cards', () => {
+    const makeNode = (id: string, type: NetworkNode['type'], parentId?: string): NetworkNode => ({
+      id, label: id, type, parentId, status: 'online', health: 100, x: 0, y: 0,
+    });
+    const nodes: NetworkNode[] = [
+      makeNode('internet', 'internet'),
+      makeNode('gateway', 'gateway', 'internet'),
+      makeNode('switch', 'switch', 'gateway'),
+      ...Array.from({ length: 3 }, (_, i) => makeNode(`host-${i}`, 'hypervisor', 'switch')),
+      ...Array.from({ length: 9 }, (_, i) => makeNode(`vm-${i}`, 'vm', `host-${i % 3}`)),
+      ...Array.from({ length: 15 }, (_, i) => makeNode(`container-${i}`, 'container', `vm-${i % 9}`)),
+    ];
+    const links: NetworkLink[] = nodes
+      .filter((node) => node.parentId)
+      .map((node) => ({ id: `${node.parentId}-${node.id}`, source: node.parentId!, target: node.id, status: 'healthy' }));
+    for (const width of [1112, 390]) {
+      const layout = computeTopologyLayout(nodes, links, width, 510);
+      const { nodeWidth, nodeHeight } = layout.metrics;
+      const positions = [...layout.nodes.values()];
+
+      for (const position of positions) {
+      assert.ok(position.x - nodeWidth / 2 >= 0, `${position.id} exceeds left edge`);
+      assert.ok(position.x + nodeWidth / 2 <= layout.width, `${position.id} exceeds right edge`);
+      assert.ok(position.y - nodeHeight / 2 >= 0, `${position.id} exceeds top edge`);
+      assert.ok(position.y + nodeHeight / 2 <= layout.height, `${position.id} exceeds bottom edge`);
+      }
+      for (let i = 0; i < positions.length; i += 1) {
+        for (let j = i + 1; j < positions.length; j += 1) {
+        const a = positions[i];
+        const b = positions[j];
+        const overlaps = Math.abs(a.x - b.x) < nodeWidth && Math.abs(a.y - b.y) < nodeHeight;
+        assert.equal(overlaps, false, `${a.id} overlaps ${b.id}`);
+        }
+      }
+    }
   });
 });

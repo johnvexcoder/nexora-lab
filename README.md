@@ -1,8 +1,8 @@
-<p align="center"><img src="frontend/public/branding/nexora-detailed-320.png" width="160" alt="Nexora"></p>
+<p align="center"><img src="frontend/public/branding/nexora-detailed-320.png" width="160" alt="Nexora Lab"></p>
 
-# Nexora
+# Nexora Lab
 
-A self-hosted infrastructure dashboard for a homelab: live host metrics, Proxmox guests, Docker workloads, network topology, alerts, and administrator controls. Nexora Agent collects telemetry on each monitored Linux host.
+A self-hosted infrastructure operations dashboard for a homelab: live host metrics, Proxmox guests, Docker workloads, network topology, alerts, and administrator controls. [Nexora Agent](https://github.com/johnvexcoder/nexora-agent) collects telemetry on each monitored Linux host.
 
 **Release status:** release candidate work; clean-host installation, container permissions, HTTPS, upgrade, and disaster recovery still require the acceptance run in [RELEASE-CHECKLIST.md](RELEASE-CHECKLIST.md). Passing unit tests does not certify a production deployment.
 
@@ -10,11 +10,10 @@ A self-hosted infrastructure dashboard for a homelab: live host metrics, Proxmox
 
 - [Production installation, pairing, backup, restore, and recovery](PRODUCTION.md)
 - [Development setup and architecture](SETUP.md)
-- [Migration from HomeLab OS and GitHub rename preparation](MIGRATION.md)
-- [Changes](CHANGELOG.md) · [Validation evidence](VALIDATION.md)
-- [Contributing](CONTRIBUTING.md) · [Security reporting](SECURITY.md) · [GPL-3.0-or-later license](LICENSE)
+- [Release acceptance checklist](RELEASE-CHECKLIST.md) · [Release candidate evidence](RELEASE-CANDIDATE.md)
+- [Core–Agent protocol](PROTOCOL.md) · [GPL-3.0-or-later license](LICENSE)
 
-The dashboard and [Nexora Agent](https://github.com/johnvexcoder/HomeLab-Agent) remain independent repositories. The dashboard's existing remote is [HomeLab-OS](https://github.com/johnvexcoder/HomeLab-OS); `Nexora` is its planned repository name. No remote rename or published Nexora image is assumed by the installation instructions.
+[Nexora Lab](https://github.com/johnvexcoder/nexora-lab) and [Nexora Agent](https://github.com/johnvexcoder/nexora-agent) are independent repositories. Build the reviewed release locally; no prepublished container image is assumed.
 
 ## What it does
 
@@ -24,14 +23,14 @@ The dashboard and [Nexora Agent](https://github.com/johnvexcoder/HomeLab-Agent) 
 - SQLite persistence, online database backups, configuration snapshots, and offline recovery CLI.
 - Optional SMTP and notification integrations configured through the administrator UI.
 
-Use a trusted management LAN or an HTTPS reverse proxy. Nexora is a single-host application, not a high-availability control plane. Telemetry requires compatible host tools and permissions; the default Agent intentionally cannot access the Docker daemon or raw disks.
+Use a trusted management LAN or an HTTPS reverse proxy. Nexora Lab is a single-host application, not a high-availability control plane. Telemetry requires compatible host tools and permissions; the default Agent intentionally cannot access the Docker daemon or raw disks.
 
-## Nexora Core ↔ Agent integration
+## Nexora Lab ↔ Nexora Agent integration
 
-Nexora splits cleanly into two repositories that talk over one versioned HTTP contract:
+The two repositories communicate over one versioned HTTP contract:
 
-- **This Core** (`HomeLab-OS`) — the dashboard, backend, telemetry engine and Proxmox/Docker integrations.
-- **[Nexora Agent](https://github.com/johnvexcoder/HomeLab-Agent)** — an independent, outbound-only telemetry agent installed on each monitored Linux host.
+- **[Nexora Lab](https://github.com/johnvexcoder/nexora-lab)** — the dashboard, backend, telemetry engine and Proxmox/Docker integrations.
+- **[Nexora Agent](https://github.com/johnvexcoder/nexora-agent)** — an independent, outbound-only telemetry agent installed on each monitored Linux host.
 
 Relationship and compatibility:
 
@@ -45,4 +44,4 @@ Setup:
 2. On each monitored host, install the Agent pointing at this Core: `sudo ./install.sh --dashboard-url https://DASHBOARD_HOST/api --api-key-file /secure/path/agent-api-key`.
 3. The host appears online within ~10–15 seconds. Use the Agent's `--diagnose` mode for connection/version/capability troubleshooting.
 
-The approved Nexora logos are included unchanged: the core mark appears in compact navigation and browser placements, and the detailed mark in larger branding. Existing persisted names such as `homelab.db` are compatibility identifiers, not incomplete branding.
+The approved Nexora Lab logos are included unchanged: the compact mark appears in navigation and browser placements, and the detailed mark in larger branding. Persisted names such as `homelab.db` and the existing `Nexora` authenticator issuer remain unchanged so upgrades preserve data and enrolled TOTP accounts.

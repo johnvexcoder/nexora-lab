@@ -2,7 +2,7 @@ import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { ArrowUpRight, Cpu, HardDrive, MemoryStick, Thermometer, ArrowDown, ArrowUp, Layers, Server as ServerIcon } from 'lucide-react';
 import type { ServerRuntime } from '@/types';
-import { REACH_META, CAPABILITY_META, statusTextClass, statusDotClass } from '@/lib/constants';
+import { REACH_META, CAPABILITY_META, CARD_LOCKED_HEIGHT_CLASS, systemTagToneClass, statusTextClass, statusDotClass } from '@/lib/constants';
 import { INFRA_ICON_COMPONENTS } from '@/lib/icons';
 import {
   classifyEntity,
@@ -44,7 +44,7 @@ export function ServerCard({ server, index }: { server: ServerRuntime; index: nu
       transition={{ duration: 0.35, delay: index * 0.03, ease: [0.16, 1, 0.3, 1] }}
       className="h-full"
     >
-      <Link to={`/servers/${s.id}`} className={cn('card card-hover flex h-[400px] flex-col overflow-hidden p-3 sm:p-4')}>
+      <Link to={`/servers/${s.id}`} className={cn('card card-hover flex flex-col overflow-hidden p-3 sm:p-4', CARD_LOCKED_HEIGHT_CLASS)}>
         {/* ── HEADER ─────────────────────────────────────────────── */}
         <div className="flex items-start gap-2.5">
           <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-surface-border bg-surface-elevated">
@@ -105,6 +105,18 @@ export function ServerCard({ server, index }: { server: ServerRuntime; index: nu
 
         {/* ── TAGS / CAPABILITIES ────────────────────────────────── */}
         <div className="mt-2 flex min-h-[20px] flex-wrap items-center gap-1">
+          {(server.tags ?? []).map((tag) => (
+            <span
+              key={tag.id}
+              className={cn(
+                'whitespace-nowrap rounded border px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-wide',
+                systemTagToneClass(tag),
+              )}
+              title={`${tag.label}: ${tag.running ? 'running' : tag.installed ? 'installed, stopped' : 'not installed'}`}
+            >
+              {tag.label}
+            </span>
+          ))}
           {(s.capabilities ?? []).map((cap) => (
             <span key={cap} className="whitespace-nowrap rounded border border-surface-border bg-surface-input px-1.5 py-0.5 text-[8px] font-medium uppercase tracking-wide text-text-muted">
               {CAPABILITY_META[cap]?.label ?? cap}

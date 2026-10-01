@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * dashboardctl — the Nexora administration & recovery CLI.
+ * dashboardctl — the Nexora Lab administration & recovery CLI.
  *
  * Usage:
  *   npm run dashboardctl -- status
@@ -49,7 +49,7 @@ function requireCmd(): void {
 }
 
 const USAGE = `
-dashboardctl — Nexora administration & recovery CLI
+dashboardctl — Nexora Lab administration & recovery CLI
 
 Commands:
   status                    Show system/database/security overview
@@ -126,7 +126,7 @@ function status(): void {
   const settings = getAllSettings();
   const features = getFeaturesMap();
   const backups = listBackups(3);
-  console.log('[dashboardctl] ===== Nexora status =====');
+  console.log('[dashboardctl] ===== Nexora Lab status =====');
   console.log(`  data dir      : ${config.dataDir}`);
   console.log(`  database      : ${getDb() ? 'open' : 'error'}`);
   console.log(`  users         : ${users.length}`);

@@ -15,6 +15,31 @@ import { countMetrics } from '../db/database';
 import { SERVER_SPECS, CLUSTER_NAMES, MOCK_SERVER_CONTAINERS } from '../mock-data/servers';
 import { clamp, round } from '../telemetry/random';
 import { historyForServer, statsHistoryFor } from './history';
+import { resolveSystemTags, type SystemTagReport } from '../services/systemTags';
+
+function withMockSystemTags(server: ServerRuntime): ServerRuntime {
+  const report: SystemTagReport = {
+    dbus: { installed: true, running: true },
+    ssh: { installed: true, running: true },
+    'lm-sensors': {
+      installed: server.spec.sensors.length > 0,
+      running: server.spec.sensors.length > 0,
+    },
+    docker: {
+      installed: server.spec.capabilities.includes('containerization'),
+      running: server.spec.capabilities.includes('containerization'),
+    },
+    containerd: {
+      installed: server.spec.capabilities.includes('containerization'),
+      running: server.spec.capabilities.includes('containerization'),
+    },
+    networkmanager: {
+      installed: ['gateway', 'switch', 'network'].includes(server.spec.role),
+      running: ['gateway', 'switch', 'network'].includes(server.spec.role),
+    },
+  };
+  return { ...server, tags: resolveSystemTags(report) };
+}
 
 /**
  * Mock implementation of MetricsProvider.
@@ -25,11 +50,11 @@ export class MockMetricsProvider implements MetricsProvider {
   constructor(readonly engine: TelemetryEngine) {}
 
   getServers(): ServerRuntime[] {
-    return [...this.engine.servers.values()];
+    return [...this.engine.servers.values()].map(withMockSystemTags);
   }
 
   getServer(id: string): ServerRuntime | undefined {
-    return this.engine.servers.get(id) ??
+    const server = this.engine.servers.get(id) ??
       [...this.engine.servers.values()].find((s) =>
         s.spec.id === id ||
         `docker-${s.spec.id}` === id ||
@@ -37,6 +62,7 @@ export class MockMetricsProvider implements MetricsProvider {
         s.spec.name === id ||
         s.spec.hostname === id,
       );
+    return server ? withMockSystemTags(server) : undefined;
   }
 
   getHistory(serverId: string, range: HistoryRange): HistoryPoint[] {

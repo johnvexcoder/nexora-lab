@@ -412,7 +412,7 @@ export async function dispatchToChannels(title: string, message: string, severit
   const telegramText = `${emoji} <b>${title}</b>\n\n${message}`;
 
   const htmlBody = [
-    `Nexora Notification`,
+    `Nexora Lab Notification`,
     ``,
     `${title}`,
     ``,
@@ -424,6 +424,6 @@ export async function dispatchToChannels(title: string, message: string, severit
 
   await Promise.allSettled([
     sendTelegramMessage(telegramText).catch(() => {}),
-    sendAlertEmail(`[Nexora] ${title}`, htmlBody).catch(() => {}),
+    sendAlertEmail(`[Nexora Lab] ${title}`, htmlBody).catch(() => {}),
   ]);
 }

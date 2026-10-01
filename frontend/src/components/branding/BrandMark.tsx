@@ -25,7 +25,7 @@ const SOURCES = {
   },
 } as const;
 
-export function BrandMark({ variant = 'core', className, alt = 'Nexora' }: BrandMarkProps) {
+export function BrandMark({ variant = 'core', className, alt = 'Nexora Lab' }: BrandMarkProps) {
   const source = SOURCES[variant];
 
   return (

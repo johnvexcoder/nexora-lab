@@ -116,7 +116,7 @@ export function LoginModal() {
               <span className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full bg-accent animate-glow-pulse" />
             </div>
             <h1 className="mt-4 fluid-h1 font-display font-bold tracking-tight text-text-primary">
-              Nexora
+              Nexora Lab
             </h1>
             <p className="mt-1 text-sm text-text-muted">Sign in to configure the dashboard</p>
           </div>

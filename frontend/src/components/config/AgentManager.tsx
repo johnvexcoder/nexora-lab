@@ -446,7 +446,7 @@ export function AgentManager() {
 
               <div className="mt-4 space-y-3">
                 <InstallStep num={1} title="Get a reviewed Agent release">
-                  <CodeBlock>{`git clone https://github.com/johnvexcoder/HomeLab-Agent.git nexora-agent
+                  <CodeBlock>{`git clone https://github.com/johnvexcoder/nexora-agent.git nexora-agent
 cd nexora-agent
 git checkout YOUR_REVIEWED_AGENT_TAG`}</CodeBlock>
                   <p className="text-xs text-text-muted">Follow PRODUCTION.md in that release for Linux prerequisites, Compose or native installation. Container monitoring runs on Linux hosts.</p>

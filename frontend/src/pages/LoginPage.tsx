@@ -129,7 +129,7 @@ export default function LoginPage() {
           <div className="mb-8 flex flex-col items-center text-center">
             <BrandMark variant="detailed" className="h-20 w-20" />
             <h1 className="mt-4 fluid-h1 font-display font-bold tracking-tight text-text-primary">
-              Nexora
+              Nexora Lab
             </h1>
             <p className="mt-1 text-sm text-text-muted">Sign in to the NOC control center</p>
           </div>

@@ -22,7 +22,7 @@ export function uuid(seed: string): string {
 
 /** Display names for the demo clusters referenced by `clusterId`. */
 export const CLUSTER_NAMES: Record<string, string> = {
-  'lab-proxmox': 'Nexora Proxmox Cluster',
+  'lab-proxmox': 'Nexora Lab Proxmox Cluster',
 };
 
 export interface MockContainerDef {
@@ -128,7 +128,7 @@ export const SERVER_SPECS: ServerSpec[] = [
     clusterId: 'lab-proxmox',
     parentId: 'pve0',
     os: 'Debian 12 (Bookworm)',
-    description: 'Core application host — Nexora + Prometheus stack',
+    description: 'Core application host — Nexora Lab + Prometheus stack',
     role: 'docker',
     ip: '192.168.1.30',
     location: 'pve0 / VMID 100',

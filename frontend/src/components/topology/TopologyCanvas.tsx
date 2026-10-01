@@ -65,6 +65,7 @@ export interface TopologyCanvasProps {
   showControls?: boolean;
   showLegend?: boolean;
   showStatusBar?: boolean;
+  interactiveViewport?: boolean;
   onRefresh?: () => void;
   isRefreshing?: boolean;
   isLoading?: boolean;
@@ -109,6 +110,7 @@ export function TopologyCanvas({
   showControls = false,
   showLegend = false,
   showStatusBar = false,
+  interactiveViewport = true,
   onRefresh,
   isRefreshing = false,
   isLoading = false,
@@ -123,8 +125,7 @@ export function TopologyCanvas({
   // The layout depends only on the topology *structure* (node ids, types,
   // parents and link connectivity), never on telemetry values. Telemetry
   // updates therefore reuse the previous computed positions — nodes cannot
-  // jump from a metric refresh. Previous positions also anchor existing nodes
-  // when a structural change (node added/removed) does force recomputation.
+  // jump from a metric refresh. Structural changes receive a fresh layout.
 
   const boardWidth = containerSize.width || 1000;
   const boardHeight = containerSize.height || 500;
@@ -134,9 +135,6 @@ export function TopologyCanvas({
     [nodes, links],
   );
 
-  const prevLayoutRef = useRef<TopologyLayout | null>(null);
-  const prevBoardRef = useRef({ boardWidth, boardHeight });
-
   // Always-current snapshot for use inside the memo (satisfies exhaustive-deps
   // while keeping the memo keyed on structure only).
   const layoutInputRef = useRef({ boardWidth, boardHeight });
@@ -144,20 +142,12 @@ export function TopologyCanvas({
 
   const layout: TopologyLayout = useMemo(() => {
     const { boardWidth: bw, boardHeight: bh } = layoutInputRef.current;
-    const boardUnchanged =
-      prevBoardRef.current.boardWidth === bw && prevBoardRef.current.boardHeight === bh;
     const next = computeTopologyLayout(
       nodes,
       links,
       bw,
       bh,
-      // Anchor existing nodes to their prior position on structural changes
-      // (e.g. a container appears/disappears) so unrelated nodes never jump.
-      // On a resize the layout reflows freely to the new container.
-      boardUnchanged ? prevLayoutRef.current?.nodes : undefined,
     );
-    prevLayoutRef.current = next;
-    prevBoardRef.current = { boardWidth: bw, boardHeight: bh };
     return next;
     // Re-compute only when structure or container size changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -241,19 +231,19 @@ export function TopologyCanvas({
     }
   }, [containerSize.width, containerSize.height]);
 
-  // Auto-fit when topology structure changes (not on resize or telemetry updates)
+  // A fixed map must re-fit on resize; interactive maps preserve the user's pan.
   const dataKey = structureKey;
   const prevDataKeyRef = useRef(dataKey);
 
   useEffect(() => {
-    if (dataKey !== prevDataKeyRef.current || !fitAppliedRef.current) {
+    if (!interactiveViewport || dataKey !== prevDataKeyRef.current || !fitAppliedRef.current) {
       prevDataKeyRef.current = dataKey;
       fitAppliedRef.current = true;
       setZoom(fitZoom);
       setPanX(layoutW / 2);
       setPanY(layoutH / 2);
     }
-  }, [dataKey, fitZoom, layoutW, layoutH]);
+  }, [dataKey, fitZoom, layoutW, layoutH, interactiveViewport]);
 
   // ── Clamp helper ──────────────────────────────────────────────
 
@@ -273,7 +263,7 @@ export function TopologyCanvas({
 
   useEffect(() => {
     const el = containerRef.current;
-    if (!el) return;
+    if (!el || !interactiveViewport) return;
     const handler = (e: WheelEvent) => {
       e.preventDefault();
       const rect = el.getBoundingClientRect();
@@ -294,7 +284,7 @@ export function TopologyCanvas({
     };
     el.addEventListener('wheel', handler, { passive: false });
     return () => el.removeEventListener('wheel', handler);
-  }, [containerRef, boardWidth, boardHeight, zoomLimits.min, zoomLimits.max, clampPan]);
+  }, [containerRef, boardWidth, boardHeight, zoomLimits.min, zoomLimits.max, clampPan, interactiveViewport]);
 
   // ── Pointer drag ──────────────────────────────────────────────
 
@@ -470,17 +460,17 @@ export function TopologyCanvas({
     <div
       ref={containerRef}
       className={cn('relative h-full w-full overflow-hidden select-none', className)}
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={() => { handlePointerUp(); resetPinch(); }}
-      onPointerCancel={() => { handlePointerCancel(); resetPinch(); }}
-      onPointerLeave={() => { handlePointerCancel(); resetPinch(); }}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
+      onPointerDown={interactiveViewport ? handlePointerDown : undefined}
+      onPointerMove={interactiveViewport ? handlePointerMove : undefined}
+      onPointerUp={interactiveViewport ? () => { handlePointerUp(); resetPinch(); } : undefined}
+      onPointerCancel={interactiveViewport ? () => { handlePointerCancel(); resetPinch(); } : undefined}
+      onPointerLeave={interactiveViewport ? () => { handlePointerCancel(); resetPinch(); } : undefined}
+      onTouchStart={interactiveViewport ? handleTouchStart : undefined}
+      onTouchMove={interactiveViewport ? handleTouchMove : undefined}
+      onTouchEnd={interactiveViewport ? handleTouchEnd : undefined}
       style={{
-        cursor: dragRef.current ? 'grabbing' : 'grab',
-        touchAction: variant === 'workspace' ? 'none' : 'pan-y',
+        cursor: interactiveViewport ? (dragRef.current ? 'grabbing' : 'grab') : 'default',
+        touchAction: interactiveViewport && variant === 'workspace' ? 'none' : 'pan-y',
       }}
     >
       {/* Grid backdrop */}
@@ -764,7 +754,7 @@ export function TopologyCanvas({
           ZOOM CONTROLS (bottom-left)
           ═══════════════════════════════════════════════════════════ */}
 
-      {showControls && nodes.length > 0 && (
+      {interactiveViewport && showControls && nodes.length > 0 && (
         <div className="absolute bottom-3 left-3 z-30 flex flex-col gap-1">
           <button
             type="button"

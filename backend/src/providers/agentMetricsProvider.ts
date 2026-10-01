@@ -12,7 +12,7 @@ type NotificationListener = (notifications: Notification[]) => void;
 
 /**
  * AgentMetricsProvider provides live dashboard telemetry exclusively from the 
- * HomeLab-Agent data stored in the local SQLite database.
+ * Nexora Agent data stored in the local SQLite database.
  * Used when no hypervisor (Proxmox) is configured.
  */
 export class AgentMetricsProvider implements MetricsProvider, TelemetryBroadcaster {

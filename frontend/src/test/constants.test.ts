@@ -49,9 +49,10 @@ describe('constants', () => {
   });
 
   describe('compactClusterLabel', () => {
-    it('strips HomeLab and Nexora prefixes', () => {
+    it('strips legacy and Nexora Lab prefixes', () => {
       assert.equal(compactClusterLabel('HomeLab Cluster'), 'Cluster');
       assert.equal(compactClusterLabel('Nexora Main'), 'Main');
+      assert.equal(compactClusterLabel('Nexora Lab Proxmox Cluster'), 'Proxmox Cluster');
     });
 
     it('does not strip when there is no whitespace after the prefix', () => {

@@ -1,4 +1,4 @@
-# Nexora development
+# Nexora Lab development
 
 For installation on a server, use [PRODUCTION.md](PRODUCTION.md). This document is for contributors.
 

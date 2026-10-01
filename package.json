@@ -2,7 +2,7 @@
   "name": "nexora",
   "version": "1.0.17",
   "private": true,
-  "description": "Nexora - a premium self-hosted infrastructure dashboard",
+  "description": "Nexora Lab - a self-hosted infrastructure operations dashboard",
   "license": "GPL-3.0-or-later",
   "workspaces": [
     "frontend",

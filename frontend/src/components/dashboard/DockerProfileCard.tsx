@@ -55,7 +55,7 @@ export function DockerProfileCards() {
               </div>
             </div>
 
-            <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto pr-1">
+            <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto overscroll-contain pr-1">
               {profile.containers.map((c) => (
                 <div
                   key={c.id}

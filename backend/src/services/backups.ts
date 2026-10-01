@@ -161,7 +161,7 @@ export function restoreBackup(file: string): { restored: boolean; needsRestart: 
       const check = probe.pragma('quick_check') as Array<{ quick_check: string }>;
       if (check.length !== 1 || check[0].quick_check !== 'ok') throw new Error('Integrity check failed');
       for (const table of ['users', 'settings', 'integrations', 'metrics']) {
-        if (!probe.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name=?").get(table)) throw new Error('Not a Nexora backup');
+        if (!probe.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name=?").get(table)) throw new Error('Not a Nexora Lab backup');
       }
     } finally { probe.close(); }
   } catch {
